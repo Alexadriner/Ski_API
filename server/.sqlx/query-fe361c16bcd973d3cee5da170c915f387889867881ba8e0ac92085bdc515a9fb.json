@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "\n        INSERT INTO resorts\n        (id, name, country, region, continent,\n         latitude, longitude, village_m,\n         min_m, max_m, ski_area_name, ski_area_type)\n        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 12
+    },
+    "nullable": []
+  },
+  "hash": "fe361c16bcd973d3cee5da170c915f387889867881ba8e0ac92085bdc515a9fb"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "\n        UPDATE resorts SET\n            name = ?, country = ?, region = ?, continent = ?,\n            latitude = ?, longitude = ?, village_m = ?,\n            min_m = ?, max_m = ?, ski_area_name = ?, ski_area_type = ?\n        WHERE id = ?\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 12
+    },
+    "nullable": []
+  },
+  "hash": "aaef19c7b5cc5727f214f9c4edb211993ca1e197a46aaf74e3162dc014a09702"
+}
