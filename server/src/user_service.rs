@@ -12,21 +12,21 @@ pub async fn create_user(
 ) -> Result<String, sqlx::Error> {
     // 1. API-Key generieren
     let api_key_plain = generate_api_key();
-
+    
     // 2. Hashes erzeugen
     let api_key_hash = hash_secret(&api_key_plain);
     let password_hash = hash_secret(password);
 
     // 3. User speichern
     sqlx::query!(
-        r#"
-        INSERT INTO users (name, email, password_hash, api_key, is_admin)
-        VALUES (?, ?, ?, ?, 0)
-        "#,
-        name,
-        email,
-        password_hash,
-        api_key_hash
+            r#"
+            INSERT INTO users (name, email, password_hash, api_key, is_admin, subscription)
+            VALUES (?, ?, ?, ?, 0, 'Free')
+            "#,
+            name,
+            email,
+            password_hash,
+            api_key_hash
     )
     .execute(pool)
     .await?;

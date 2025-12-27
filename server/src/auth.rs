@@ -2,8 +2,8 @@ use actix_web::{
     body::{BoxBody, MessageBody},
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
     http::Method,
+    error::ErrorInternalServerError,
     Error, HttpResponse,
-    error::ErrorInternalServerError
 };
 use futures_util::future::{ok, Ready, LocalBoxFuture};
 use sqlx::MySqlPool;
@@ -14,6 +14,8 @@ use std::{
 use url::form_urlencoded;
 
 use crate::security::hash::verify_secret;
+use crate::security::subscription::get_limits;
+use time::OffsetDateTime;
 
 pub struct ApiKeyAuth {
     pub pool: MySqlPool,
@@ -62,59 +64,137 @@ where
         let method = req.method().clone();
 
         Box::pin(async move {
-            // --- api_key aus URL ---
-            let query = req.query_string();
-            let provided_key = form_urlencoded::parse(query.as_bytes())
-                .find(|(k, _)| k == "api_key")
-                .map(|(_, v)| v.to_string());
+            /* ---------------- API KEY LESEN ---------------- */
 
-            let api_key = match provided_key {
+            let api_key = match form_urlencoded::parse(req.query_string().as_bytes())
+                .find(|(k, _)| k == "api_key")
+                .map(|(_, v)| v.to_string())
+            {
                 Some(k) => k,
                 None => {
-                    let res = HttpResponse::Unauthorized()
-                        .body("Missing api_key");
-                    return Ok(req.into_response(res.map_into_boxed_body()));
+                    return Ok(req.into_response(
+                        HttpResponse::Unauthorized()
+                            .body("Missing api_key")
+                            .map_into_boxed_body(),
+                    ));
                 }
             };
 
-            // --- alle User laden ---
+            /* ---------------- USER LADEN ---------------- */
+
             let users = sqlx::query!(
-                "SELECT api_key, is_admin FROM users"
+                r#"
+                SELECT id, api_key, is_admin, subscription,
+                       requests_minute, requests_month,
+                       last_request_minute, last_request_month
+                FROM users
+                "#
             )
             .fetch_all(&pool)
             .await
             .map_err(|_| ErrorInternalServerError("Database error"))?;
 
-            // --- Key verifizieren ---
-            let mut is_admin = false;
-            let mut valid = false;
+            let mut user = None;
 
-            for user in users {
-                let stored_hash = user.api_key.as_str();
-
-                if verify_secret(&api_key, stored_hash) {
-                    valid = true;
-                    is_admin = user.is_admin == 1;
+            for u in users {
+                if verify_secret(&api_key, &u.api_key) {
+                    user = Some(u);
                     break;
                 }
             }
 
-            if !valid {
-                let res = HttpResponse::Unauthorized()
-                    .body("Invalid api_key");
-                return Ok(req.into_response(res.map_into_boxed_body()));
+            let mut user = match user {
+                Some(u) => u,
+                None => {
+                    return Ok(req.into_response(
+                        HttpResponse::Unauthorized()
+                            .body("Invalid api_key")
+                            .map_into_boxed_body(),
+                    ));
+                }
+            };
+
+            /* ---------------- ADMIN CHECK ---------------- */
+
+            if method != Method::GET && user.is_admin != 1 {
+                return Ok(req.into_response(
+                    HttpResponse::Forbidden()
+                        .body("Admin privileges required")
+                        .map_into_boxed_body(),
+                ));
             }
 
-            // --- Rechte prüfen ---
-            let is_get = method == Method::GET;
+            /* ---------------- RATE LIMIT ---------------- */
 
-            if !is_get && !is_admin {
-                let res = HttpResponse::Forbidden()
-                    .body("Admin privileges required");
-                return Ok(req.into_response(res.map_into_boxed_body()));
+            let now = OffsetDateTime::now_utc();
+            let today = now.date();
+
+            let reset_minute = user
+                .last_request_minute
+                .map(|t| {
+                    t.year() != now.year()
+                        || t.month() != now.month()
+                        || t.day() != now.day()
+                        || t.hour() != now.hour()
+                        || t.minute() != now.minute()
+                })
+                .unwrap_or(true);
+
+            let reset_month = user
+                .last_request_month
+                .map(|d| d.year() != now.year() || d.month() != now.month())
+                .unwrap_or(true);
+
+            let mut req_min: u32 = if reset_minute { 0 } else { user.requests_minute } as u32;
+            let mut req_mon: u32 = if reset_month { 0 } else { user.requests_month } as u32;
+
+            let limits = get_limits(&user.subscription);
+
+            if let Some(max ) = limits.per_minute {
+                if req_min >= max {
+                    return Ok(req.into_response(
+                        HttpResponse::TooManyRequests()
+                            .body("Minute rate limit exceeded")
+                            .map_into_boxed_body(),
+                    ));
+                }
             }
 
-            // --- Request weiterreichen ---
+            if let Some(max) = limits.per_month {
+                if req_mon >= max {
+                    return Ok(req.into_response(
+                        HttpResponse::TooManyRequests()
+                            .body("Monthly rate limit exceeded")
+                            .map_into_boxed_body(),
+                    ));
+                }
+            }
+
+            req_min += 1;
+            req_mon += 1;
+
+            sqlx::query!(
+                r#"
+                UPDATE users
+                SET
+                    requests_minute = ?,
+                    requests_month = ?,
+                    last_request_minute = ?,
+                    last_request_month = ?
+                WHERE id = ?
+                "#,
+                req_min,
+                req_mon,
+                now,
+                today,
+                user.id
+            )
+            .execute(&pool)
+            .await
+            .map_err(|_| ErrorInternalServerError("DB update failed"))?;
+
+            /* ---------------- REQUEST WEITERLEITEN ---------------- */
+
             let res = srv.call(req).await?;
             Ok(res.map_into_boxed_body())
         })
