@@ -1,0 +1,28 @@
+# --- Rust / Cargo ---
+/target/
+**/*.rs.bk
+
+# Cargo build artifacts
+Cargo.lock.backup
+
+# --- IDEs & Editor ---
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- Betriebssystem ---
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+
+# --- Environment / Secrets ---
+.env
+.env.*
+
+# --- Test & Coverage ---
+coverage/
+*.profraw
+*.profdata
