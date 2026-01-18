@@ -1,1 +1,0 @@
-std::option::Option<<ApiKeyAuthMiddleware<S> as actix_web::dev::Service<ServiceRequest>>::call::{closure#0}::Record>
