@@ -9,15 +9,18 @@ pub struct Resort {
     pub id: String,
     pub name: String,
     pub country: String,
-    pub region: String,
-    pub continent: String,
-    pub latitude: f64,
-    pub longitude: f64,
-    pub village_m: i32,
-    pub min_m: i32,
-    pub max_m: i32,
-    pub ski_area_name: String,
-    pub ski_area_type: String,
+    pub region: Option<String>,
+    pub continent: Option<String>,
+
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
+
+    pub village_altitude_m: Option<i32>,
+    pub min_altitude_m: Option<i32>,
+    pub max_altitude_m: Option<i32>,
+
+    pub ski_area_name: Option<String>,
+    pub ski_area_type: Option<String>,
 }
 
 /* ---------- HANDLER ---------- */
@@ -28,8 +31,8 @@ pub async fn get_resorts(db: web::Data<MySqlPool>) -> impl Responder {
         Resort,
         r#"
         SELECT id, name, country, region, continent,
-               latitude, longitude, village_m,
-               min_m, max_m, ski_area_name, ski_area_type
+               latitude, longitude, village_altitude_m,
+               min_altitude_m, max_altitude_m, ski_area_name, ski_area_type
         FROM resorts
         "#
     )
@@ -51,8 +54,8 @@ pub async fn get_resort(
         Resort,
         r#"
         SELECT id, name, country, region, continent,
-               latitude, longitude, village_m,
-               min_m, max_m, ski_area_name, ski_area_type
+               latitude, longitude, village_altitude_m,
+               min_altitude_m, max_altitude_m, ski_area_name, ski_area_type
         FROM resorts WHERE id = ?
         "#,
         *id
@@ -75,8 +78,8 @@ pub async fn create_resort(
         r#"
         INSERT INTO resorts
         (id, name, country, region, continent,
-         latitude, longitude, village_m,
-         min_m, max_m, ski_area_name, ski_area_type)
+         latitude, longitude, village_altitude_m,
+         min_altitude_m, max_altitude_m, ski_area_name, ski_area_type)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#,
         resort.id,
@@ -86,9 +89,9 @@ pub async fn create_resort(
         resort.continent,
         resort.latitude,
         resort.longitude,
-        resort.village_m,
-        resort.min_m,
-        resort.max_m,
+        resort.village_altitude_m,
+        resort.min_altitude_m,
+        resort.max_altitude_m,
         resort.ski_area_name,
         resort.ski_area_type
     )
@@ -111,8 +114,8 @@ pub async fn update_resort(
         r#"
         UPDATE resorts SET
             name = ?, country = ?, region = ?, continent = ?,
-            latitude = ?, longitude = ?, village_m = ?,
-            min_m = ?, max_m = ?, ski_area_name = ?, ski_area_type = ?
+            latitude = ?, longitude = ?, village_altitude_m = ?,
+            min_altitude_m = ?, max_altitude_m = ?, ski_area_name = ?, ski_area_type = ?
         WHERE id = ?
         "#,
         resort.name,
@@ -121,9 +124,9 @@ pub async fn update_resort(
         resort.continent,
         resort.latitude,
         resort.longitude,
-        resort.village_m,
-        resort.min_m,
-        resort.max_m,
+        resort.village_altitude_m,
+        resort.min_altitude_m,
+        resort.max_altitude_m,
         resort.ski_area_name,
         resort.ski_area_type,
         *id
