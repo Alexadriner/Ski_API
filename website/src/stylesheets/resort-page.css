@@ -1,77 +1,183 @@
 /* ============================= */
-/* Resort Page Layout            */
+/* Resort Page Wrapper           */
 /* ============================= */
 
 .resort-page {
-    max-width: 1200px;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column; /* stapelt alles untereinander */
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-top: 2rem;
+  padding-bottom: 3rem;
 }
 
-/* Heading bleibt zentriert */
-.page-heading {
-    text-align: center;
-    margin-bottom: 1.5rem;
+
+/* ============================= */
+/* Header Bereich                */
+/* ============================= */
+
+.resort-header {
+  text-align: center;
+  margin-bottom: 3rem;
 }
 
-/* Inhalt linksbündig */
-.info-block {
-    max-width: 400px; /* oder 30% z.B. */
-    text-align: left;
-    margin-left: 0; /* links ausrichten */
-    margin-bottom: 2rem;
+
+.resort-header h1 {
+  font-size: 3rem; /* etwas größer als base */
 }
 
-/* Zwei Spalten für Slopes & Lifts */
-.two-column-layout {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-    align-items: flex-start;
+
+.resort-header p {
+  color: #444;
+  margin: 0.3rem 0;
 }
 
-/* Karten-Optik */
-.card {
-    background-color: #f8f9fb;
-    border-radius: 12px;
-    padding: 1.5rem;
-    text-align: left;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+
+/* Info Grid */
+
+.resort-info-grid {
+  margin-top: 1.5rem;
+
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+
+  gap: 0.8rem;
+  justify-items: center;
 }
 
-/* Tabellen schöner machen */
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 1rem;
+
+/* ============================= */
+/* Tabellen Layout               */
+/* ============================= */
+
+.tables-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
 }
 
-th {
-    text-align: left;
-    font-weight: bold;
-    border-bottom: 2px solid #ddd;
-    padding-bottom: 0.5rem;
-}
 
-td {
-    padding: 0.6rem 0;
-    border-bottom: 1px solid #eee;
-}
-
-/* Schwierigkeitspunkt */
-.difficulty-icon {
-    display: inline-block;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    margin-right: 8px;
-    vertical-align: middle;
-}
-
-/* Responsive: untereinander auf kleinen Screens */
 @media (max-width: 900px) {
-    .two-column-layout {
-        grid-template-columns: 1fr;
-    }
+  .tables-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* ============================= */
+/* Box Styling                   */
+/* ============================= */
+
+.table-box {
+  background-color: #fff;
+
+  border-radius: 14px;
+  padding: 1.5rem;
+
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+
+
+.table-box h2 {
+  text-align: center;
+  margin-bottom: 1rem;
+  font-size: 2rem; /* kleiner als h1 */
+}
+
+
+/* ============================= */
+/* Tabellen                      */
+/* ============================= */
+
+.table-box table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem; /* leicht kompakter */
+}
+
+
+.table-box thead {
+  background-color: #f2f5f9;
+}
+
+
+.table-box th,
+.table-box td {
+  padding: 0.7rem 0.6rem;
+  text-align: left;
+}
+
+
+.table-box th {
+  font-weight: 600;
+  color: #222;
+}
+
+
+.table-box tbody tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+
+.table-box tbody tr:hover {
+  background-color: #eef3ff;
+}
+
+
+/* ============================= */
+/* Schwierigkeit Text            */
+/* ============================= */
+
+.difficulty {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+
+/* Farben aus Scraper */
+
+.difficulty.green {
+  color: #27ae60;
+}
+
+.difficulty.blue {
+  color: #2980b9;
+}
+
+.difficulty.red {
+  color: #c0392b;
+}
+
+.difficulty.black {
+  color: #2c3e50;
+}
+
+
+/* ============================= */
+/* Schwierigkeit Kreis           */
+/* ============================= */
+
+.difficulty-dot {
+  width: 14px;
+  height: 14px;
+
+  border-radius: 50%;
+  display: inline-block;
+
+  margin-left: 4px;
+}
+
+
+.difficulty-dot.green {
+  background-color: #27ae60;
+}
+
+.difficulty-dot.blue {
+  background-color: #2980b9;
+}
+
+.difficulty-dot.red {
+  background-color: #c0392b;
+}
+
+.difficulty-dot.black {
+  background-color: #2c3e50;
 }
