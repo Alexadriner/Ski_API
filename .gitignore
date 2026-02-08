@@ -33,3 +33,6 @@ coverage/
 
 # --- Target ---
 /target/
+target/
+
+*.pdb
