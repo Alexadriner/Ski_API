@@ -1,0 +1,46 @@
+<svg
+  width="300"
+  height="200"
+  viewBox="50 60 200 120"
+  xmlns="http://www.w3.org/2000/svg"
+  preserveAspectRatio="xMidYMid meet">
+
+  <defs>
+    <style>
+      .mountain { fill: #1F5FBF; }
+      .ski { fill: #4A4F55; }
+    </style>
+  </defs>
+
+  <!-- Berge -->
+  <polygon
+    class="mountain"
+    points="70,160 120,70 170,160" />
+
+  <polygon
+    class="mountain"
+    points="130,160 180,85 230,160"
+    opacity="0.85" />
+
+  <!-- Parallele Skier -->
+  <g transform="translate(150 145)">
+    <rect
+      class="ski"
+      x="-90"
+      y="-12"
+      width="180"
+      height="8"
+      rx="4"
+      ry="4"
+      transform="rotate(12)" />
+    <rect
+      class="ski"
+      x="-90"
+      y="4"
+      width="180"
+      height="8"
+      rx="4"
+      ry="4"
+      transform="rotate(12)" />
+  </g>
+</svg>

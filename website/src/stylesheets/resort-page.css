@@ -1,0 +1,77 @@
+/* ============================= */
+/* Resort Page Layout            */
+/* ============================= */
+
+.resort-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column; /* stapelt alles untereinander */
+}
+
+/* Heading bleibt zentriert */
+.page-heading {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+/* Inhalt linksbündig */
+.info-block {
+    max-width: 400px; /* oder 30% z.B. */
+    text-align: left;
+    margin-left: 0; /* links ausrichten */
+    margin-bottom: 2rem;
+}
+
+/* Zwei Spalten für Slopes & Lifts */
+.two-column-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: flex-start;
+}
+
+/* Karten-Optik */
+.card {
+    background-color: #f8f9fb;
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: left;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Tabellen schöner machen */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+th {
+    text-align: left;
+    font-weight: bold;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 0.5rem;
+}
+
+td {
+    padding: 0.6rem 0;
+    border-bottom: 1px solid #eee;
+}
+
+/* Schwierigkeitspunkt */
+.difficulty-icon {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+/* Responsive: untereinander auf kleinen Screens */
+@media (max-width: 900px) {
+    .two-column-layout {
+        grid-template-columns: 1fr;
+    }
+}

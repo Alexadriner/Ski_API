@@ -12,7 +12,7 @@ CSV_FILE = "ski-resorts.csv"
 LAST_RESORT_FILE = "last_resort.txt"
 
 OVERPASS_URL = "https://overpass.kumi.systems/api/interpreter"
-OVERPASS_RADIUS = 8000
+OVERPASS_RADIUS = 7000
 MAX_RETRIES = 3
 
 API_BASE_URL = "http://localhost:8080"
@@ -262,9 +262,17 @@ def process_osm_data(osm_data, resort_id):
 # =========================
 # HELPER: Fortschritt speichern und laden
 # =========================
-def save_last_resort(resort_id):
+def save_last_index(index):
     with open(LAST_RESORT_FILE, "w", encoding="utf-8") as f:
-        f.write(resort_id)
+        f.write(str(index))
+
+
+def load_last_index():
+    try:
+        with open(LAST_RESORT_FILE, "r", encoding="utf-8") as f:
+            return int(f.read().strip())
+    except:
+        return 0
 
 
 def load_last_resort():
@@ -279,27 +287,41 @@ def load_last_resort():
 # MAIN
 # =========================
 def main():
+    import sys
+
+    # Worker Nummer (0,1,2,3...)
+    worker_id = int(sys.argv[1]) if len(sys.argv) > 1 else 0
+
+    # Abstand
+    step = 20
+
     resorts = parse_csv(CSV_FILE)
 
-    last_resort_id = load_last_resort()
-    start_index = 0
+    # Resume Index laden
+    base_index = load_last_index()
 
-    if last_resort_id:
-        for i, resort in enumerate(resorts):
-            if resort["id"] == last_resort_id:
-                start_index = i + 1
-                break
+    # Start für diesen Worker
+    start = base_index + worker_id
 
-    for resort in resorts[start_index:]:
-        print(f"\n🏔️ Processing {resort['name']}")
+    print(f"Worker {worker_id} startet bei Index {start}")
+
+    for i in range(start, len(resorts), step):
+
+        resort = resorts[i]
+
+        print(f"\n🏔️ Worker {worker_id} → {resort['name']} (#{i})")
 
         create_or_update_resort(resort)
 
         osm_data = fetch_osm_data(resort)
+
         if osm_data:
             process_osm_data(osm_data, resort["id"])
 
-        save_last_resort(resort["id"])
+        # Nur Worker 0 speichert Fortschritt
+        if worker_id == 0:
+            save_last_index(i)
+
         time.sleep(2)
 
 
