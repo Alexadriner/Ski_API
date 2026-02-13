@@ -1,4 +1,4 @@
-.api-page {
+﻿.api-page {
   --api-blue: #1e6bd6;
   --api-blue-dark: #124ea0;
   --api-blue-soft: #e9f2ff;
@@ -11,6 +11,7 @@
   padding-top: 2rem;
   padding-bottom: 3rem;
   width: 100%;
+  text-align: center;
 }
 
 .api-page.page-container {
@@ -64,6 +65,14 @@
 
 .api-pricing-card.is-subscribed {
   background: linear-gradient(170deg, #8ad8cb 0%, var(--api-subscribed) 100%);
+}
+
+.api-pricing-card.plan-free {
+  background: linear-gradient(170deg, #246dcb 0%, #1658b5 100%);
+}
+
+.api-pricing-card.plan-free.is-subscribed {
+  background: linear-gradient(170deg, #246dcb 0%, #1658b5 100%);
 }
 
 .api-pricing-card h3 {
@@ -131,9 +140,10 @@
 .api-docs-section h2,
 .api-docs-section p,
 .api-docs-section strong,
-.api-docs-section li,
 .api-docs-section code,
-.api-docs-section pre {
+.api-docs-section pre,
+.api-docs-section ul,
+.api-docs-section li {
   text-align: left;
 }
 
@@ -211,6 +221,11 @@
 
 .api-doc-fields li {
   margin-bottom: 0.25rem;
+}
+
+.api-page ul,
+.api-page li {
+  text-align: left;
 }
 
 @media (max-width: 1380px) {

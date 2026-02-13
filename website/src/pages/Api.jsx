@@ -47,11 +47,6 @@ function normalizePlan(value) {
 function isSubscribedPlan(planName, userSubscription) {
   const normalizedPlan = normalizePlan(planName);
   const normalizedUser = normalizePlan(userSubscription);
-
-  if (normalizedPlan === "free" && normalizedUser) {
-    return true;
-  }
-
   return normalizedPlan === normalizedUser;
 }
 
@@ -61,6 +56,9 @@ function getPlanButtonLabel(planName, subscribed) {
   }
   if (planName === "Free") {
     return "Get API key";
+  }
+  if (planName === "Enterprise") {
+    return "Contact";
   }
   return "Subscribe";
 }
@@ -129,11 +127,12 @@ export default function Api() {
             const subscribed = isSubscribedPlan(plan.name, userSubscription);
             const label = getPlanButtonLabel(plan.name, subscribed);
             const disabled = subscribed || (!loggedIn && plan.name !== "Free");
+            const planClass = `plan-${plan.name.toLowerCase()}`;
 
             return (
               <article
                 key={plan.name}
-                className={`api-pricing-card ${subscribed ? "is-subscribed" : ""}`}
+                className={`api-pricing-card ${planClass} ${subscribed ? "is-subscribed" : ""}`}
               >
                 <h3>{plan.name}</h3>
                 <p className="api-plan-price">{plan.price}</p>
