@@ -432,19 +432,38 @@ def main():
         "slopes"
     )
 
-    apply_changes(
-        clean_lifts,
-        del_lifts,
-        "lifts",
-        checkpoint
-    )
+    entities = {
+        "lifts": (clean_lifts, del_lifts),
+        "slopes": (clean_slopes, del_slopes),
+    }
 
-    apply_changes(
-        clean_slopes,
-        del_slopes,
-        "slopes",
-        checkpoint
-    )
+    process_order = ["lifts", "slopes"]
+    if checkpoint:
+        checkpoint_entity = checkpoint.get("entity_type")
+        if checkpoint_entity in entities:
+            process_order = [checkpoint_entity] + [
+                e for e in process_order if e != checkpoint_entity
+            ]
+            logger.info(f"Processing order for resume: {process_order}")
+        else:
+            logger.warning(
+                f"Unknown checkpoint entity_type '{checkpoint_entity}'. "
+                "Using default processing order."
+            )
+
+    for entity_type in process_order:
+        valid, delete = entities[entity_type]
+        entity_checkpoint = (
+            checkpoint
+            if checkpoint and checkpoint.get("entity_type") == entity_type
+            else None
+        )
+        apply_changes(
+            valid,
+            delete,
+            entity_type,
+            entity_checkpoint
+        )
 
     clear_checkpoint()
 
@@ -455,3 +474,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
