@@ -1,6 +1,7 @@
 use actix_web::{web, HttpResponse, Responder};
-use sqlx::MySqlPool;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use sqlx::{Error, MySqlPool};
+use std::collections::HashMap;
 
 /* ---------- MODEL ---------- */
 
@@ -23,11 +24,150 @@ pub struct Resort {
     pub ski_area_type: Option<String>,
 }
 
+#[derive(Serialize, Clone)]
+pub struct LiftSummary {
+    pub id: i64,
+    pub resort_id: String,
+    pub name: Option<String>,
+    pub lift_type: String,
+}
+
+#[derive(Serialize, Clone)]
+pub struct SlopeSummary {
+    pub id: i64,
+    pub resort_id: String,
+    pub name: Option<String>,
+    pub difficulty: String,
+}
+
+#[derive(Serialize)]
+pub struct Coordinates {
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
+}
+
+#[derive(Serialize)]
+pub struct Geography {
+    pub continent: Option<String>,
+    pub country: String,
+    pub region: Option<String>,
+    pub coordinates: Coordinates,
+}
+
+#[derive(Serialize)]
+pub struct Altitude {
+    pub village_m: Option<i32>,
+    pub min_m: Option<i32>,
+    pub max_m: Option<i32>,
+}
+
+#[derive(Serialize)]
+pub struct SkiArea {
+    pub name: Option<String>,
+    pub area_type: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct ResortWithRelations {
+    pub id: String,
+    pub name: String,
+    pub geography: Geography,
+    pub altitude: Altitude,
+    pub ski_area: SkiArea,
+    pub lifts: Vec<LiftSummary>,
+    pub slopes: Vec<SlopeSummary>,
+}
+
+impl ResortWithRelations {
+    fn from_resort(resort: Resort, lifts: Vec<LiftSummary>, slopes: Vec<SlopeSummary>) -> Self {
+        Self {
+            id: resort.id,
+            name: resort.name,
+            geography: Geography {
+                continent: resort.continent,
+                country: resort.country,
+                region: resort.region,
+                coordinates: Coordinates {
+                    latitude: resort.latitude,
+                    longitude: resort.longitude,
+                },
+            },
+            altitude: Altitude {
+                village_m: resort.village_altitude_m,
+                min_m: resort.min_altitude_m,
+                max_m: resort.max_altitude_m,
+            },
+            ski_area: SkiArea {
+                name: resort.ski_area_name,
+                area_type: resort.ski_area_type,
+            },
+            lifts,
+            slopes,
+        }
+    }
+}
+
+/* ---------- HELPERS ---------- */
+
+async fn load_lifts_by_resort(
+    db: &MySqlPool,
+) -> Result<HashMap<String, Vec<LiftSummary>>, Error> {
+    let rows = sqlx::query!(
+        r#"
+        SELECT id, resort_id, name, lift_type
+        FROM lifts
+        "#
+    )
+    .fetch_all(db)
+    .await?;
+
+    let mut map: HashMap<String, Vec<LiftSummary>> = HashMap::new();
+
+    for row in rows {
+        let resort_id = row.resort_id.clone();
+        map.entry(resort_id).or_default().push(LiftSummary {
+            id: row.id,
+            resort_id: row.resort_id,
+            name: row.name,
+            lift_type: row.lift_type,
+        });
+    }
+
+    Ok(map)
+}
+
+async fn load_slopes_by_resort(
+    db: &MySqlPool,
+) -> Result<HashMap<String, Vec<SlopeSummary>>, Error> {
+    let rows = sqlx::query!(
+        r#"
+        SELECT id, resort_id, name, difficulty
+        FROM slopes
+        "#
+    )
+    .fetch_all(db)
+    .await?;
+
+    let mut map: HashMap<String, Vec<SlopeSummary>> = HashMap::new();
+
+    for row in rows {
+        let resort_id = row.resort_id.clone();
+        map.entry(resort_id).or_default().push(SlopeSummary {
+            id: row.id,
+            resort_id: row.resort_id,
+            name: row.name,
+            difficulty: row.difficulty,
+        });
+    }
+
+    Ok(map)
+}
+
 /* ---------- HANDLER ---------- */
 
 // GET /resorts
 pub async fn get_resorts(db: web::Data<MySqlPool>) -> impl Responder {
-    let result = sqlx::query_as!(
+    let resorts_result = sqlx::query_as!(
         Resort,
         r#"
         SELECT id, name, country, region, continent,
@@ -39,10 +179,38 @@ pub async fn get_resorts(db: web::Data<MySqlPool>) -> impl Responder {
     .fetch_all(db.get_ref())
     .await;
 
-    match result {
-        Ok(resorts) => HttpResponse::Ok().json(resorts),
-        Err(_) => HttpResponse::InternalServerError().finish(),
-    }
+    let resorts = match resorts_result {
+        Ok(data) => data,
+        Err(_) => return HttpResponse::InternalServerError().finish(),
+    };
+
+    let lifts_by_resort = match load_lifts_by_resort(db.get_ref()).await {
+        Ok(data) => data,
+        Err(_) => return HttpResponse::InternalServerError().finish(),
+    };
+
+    let slopes_by_resort = match load_slopes_by_resort(db.get_ref()).await {
+        Ok(data) => data,
+        Err(_) => return HttpResponse::InternalServerError().finish(),
+    };
+
+    let response: Vec<ResortWithRelations> = resorts
+        .into_iter()
+        .map(|resort| {
+            let lifts = lifts_by_resort
+                .get(&resort.id)
+                .cloned()
+                .unwrap_or_default();
+            let slopes = slopes_by_resort
+                .get(&resort.id)
+                .cloned()
+                .unwrap_or_default();
+
+            ResortWithRelations::from_resort(resort, lifts, slopes)
+        })
+        .collect();
+
+    HttpResponse::Ok().json(response)
 }
 
 // GET /resorts/{id}
@@ -50,7 +218,7 @@ pub async fn get_resort(
     db: web::Data<MySqlPool>,
     id: web::Path<String>,
 ) -> impl Responder {
-    let result = sqlx::query_as!(
+    let resort_result = sqlx::query_as!(
         Resort,
         r#"
         SELECT id, name, country, region, continent,
@@ -63,10 +231,62 @@ pub async fn get_resort(
     .fetch_one(db.get_ref())
     .await;
 
-    match result {
-        Ok(resort) => HttpResponse::Ok().json(resort),
-        Err(_) => HttpResponse::NotFound().finish(),
-    }
+    let resort = match resort_result {
+        Ok(data) => data,
+        Err(Error::RowNotFound) => return HttpResponse::NotFound().finish(),
+        Err(_) => return HttpResponse::InternalServerError().finish(),
+    };
+
+    let lifts_result = sqlx::query!(
+        r#"
+        SELECT id, resort_id, name, lift_type
+        FROM lifts
+        WHERE resort_id = ?
+        "#,
+        resort.id
+    )
+    .fetch_all(db.get_ref())
+    .await;
+
+    let lifts = match lifts_result {
+        Ok(rows) => rows
+            .into_iter()
+            .map(|row| LiftSummary {
+                id: row.id,
+                resort_id: row.resort_id,
+                name: row.name,
+                lift_type: row.lift_type,
+            })
+            .collect(),
+        Err(_) => return HttpResponse::InternalServerError().finish(),
+    };
+
+    let slopes_result = sqlx::query!(
+        r#"
+        SELECT id, resort_id, name, difficulty
+        FROM slopes
+        WHERE resort_id = ?
+        "#,
+        resort.id
+    )
+    .fetch_all(db.get_ref())
+    .await;
+
+    let slopes = match slopes_result {
+        Ok(rows) => rows
+            .into_iter()
+            .map(|row| SlopeSummary {
+                id: row.id,
+                resort_id: row.resort_id,
+                name: row.name,
+                difficulty: row.difficulty,
+            })
+            .collect(),
+        Err(_) => return HttpResponse::InternalServerError().finish(),
+    };
+
+    let response = ResortWithRelations::from_resort(resort, lifts, slopes);
+    HttpResponse::Ok().json(response)
 }
 
 // POST /resorts
@@ -145,12 +365,9 @@ pub async fn delete_resort(
     db: web::Data<MySqlPool>,
     id: web::Path<String>,
 ) -> impl Responder {
-    let result = sqlx::query!(
-        "DELETE FROM resorts WHERE id = ?",
-        *id
-    )
-    .execute(db.get_ref())
-    .await;
+    let result = sqlx::query!("DELETE FROM resorts WHERE id = ?", *id)
+        .execute(db.get_ref())
+        .await;
 
     match result {
         Ok(_) => HttpResponse::NoContent().finish(),
