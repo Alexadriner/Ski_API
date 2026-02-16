@@ -63,6 +63,9 @@ async fn main() -> std::io::Result<()> {
                 .route("/slopes", web::post().to(create_slope))
                 .route("/slopes/{id}", web::put().to(update_slope))
                 .route("/slopes/{id}", web::delete().to(delete_slope))
+                .route("/slopes/by_resort/{resort_id}", web::get().to(get_slopes_by_resort))
+                .route("/slopes/by_resort/{resort_id}", web::delete().to(delete_slopes_by_resort))
+
 
                 // Lifts
                 .route("/lifts", web::get().to(get_lifts))
@@ -70,6 +73,9 @@ async fn main() -> std::io::Result<()> {
                 .route("/lifts", web::post().to(create_lift))
                 .route("/lifts/{id}", web::put().to(update_lift))
                 .route("/lifts/{id}", web::delete().to(delete_lift))
+                .route("/lifts/by_resort/{resort_id}", web::get().to(get_lifts_by_resort))
+                .route("/lifts/by_resort/{resort_id}", web::delete().to(delete_lifts_by_resort))
+
 
                 // User
                 .route("/me", web::get().to(me))

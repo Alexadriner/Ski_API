@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import sys
 import time
 import unicodedata
 from datetime import datetime
@@ -14,6 +15,7 @@ import requests
 # PATHS
 # =========================
 ROOT_DIR = Path(__file__).resolve().parents[2]
+COORD_DIR = ROOT_DIR / "checkpoints" / "coordinates"
 
 # =========================
 # CONFIG
@@ -30,27 +32,15 @@ SLEEP = 0.2
 # =========================
 # LOGGING
 # =========================
-LOG_DIR = ROOT_DIR / "logs"
+LOG_DIR = ROOT_DIR / "logs" / "cleanup"
 os.makedirs(LOG_DIR, exist_ok=True)
-
-log_filename = datetime.now().strftime("cleanup_%Y-%m-%d_%H-%M-%S.log")
-log_path = LOG_DIR / log_filename
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s",
-    handlers=[
-        logging.FileHandler(log_path, encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-)
-
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cleanup_ski_data")
+logger.setLevel(logging.INFO)
 
 # =========================
 # CHECKPOINT
 # =========================
-CHECKPOINT_DIR = ROOT_DIR / "checkpoints"
+CHECKPOINT_DIR = ROOT_DIR / "checkpoints" / "cleanup"
 CHECKPOINT_FILE = "progress.txt"
 
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
@@ -81,6 +71,137 @@ def generate_fallback_name(entity, difficulty=None, lift_type=None, osm_id=None)
         return f"{difficulty.title()} Slope {osm_id}"
 
     return None
+
+
+def generate_coordinate_name(entity, start_lat=None, start_lon=None, difficulty=None, lift_type=None, osm_id=None):
+    if start_lat is None or start_lon is None:
+        return generate_fallback_name(entity, difficulty=difficulty, lift_type=lift_type, osm_id=osm_id)
+
+    lat_s = f"{float(start_lat):.5f}"
+    lon_s = f"{float(start_lon):.5f}"
+
+    if entity == "lift":
+        kind = (lift_type or "unknown").title()
+        return f"{kind} Lift [{lat_s},{lon_s}]"
+
+    kind = (difficulty or "unknown").title()
+    return f"{kind} Slope [{lat_s},{lon_s}]"
+
+
+def is_previous_fallback_name(name, entity_type):
+    if not name:
+        return False
+
+    normalized_entity_type = str(entity_type).lower()
+    if normalized_entity_type in ("lift", "lifts"):
+        return bool(re.match(r"^[A-Za-z_]+ Lift \d+$", name))
+
+    return bool(re.match(r"^[A-Za-z_]+ Slope \d+$", name))
+
+
+def build_point_key(lat, lon):
+    if lat is None or lon is None:
+        return None
+    return f"{float(lat):.5f},{float(lon):.5f}"
+
+
+def build_segment_key(start_lat, start_lon, end_lat, end_lon):
+    p1 = build_point_key(start_lat, start_lon)
+    p2 = build_point_key(end_lat, end_lon)
+    if not p1 and not p2:
+        return None
+    if not p1:
+        p1 = p2
+    if not p2:
+        p2 = p1
+    # Direction-independent key, so reversed geometries count as same segment.
+    a, b = sorted([p1, p2])
+    return f"{a}|{b}"
+
+
+def load_coordinate_index():
+    by_entity = {"lifts": {}, "slopes": {}}
+
+    if not COORD_DIR.exists():
+        logger.warning("No coordinate directory found. Cleanup runs without coordinate enrichment.")
+        return by_entity
+
+    files = sorted(COORD_DIR.glob("worker_*.jsonl"))
+    loaded = 0
+
+    for file_path in files:
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    raw = line.strip()
+                    if not raw:
+                        continue
+
+                    try:
+                        item = json.loads(raw)
+                    except json.JSONDecodeError:
+                        continue
+
+                    entity_type = item.get("entity_type")
+                    if entity_type not in by_entity:
+                        continue
+
+                    entity_id = item.get("id")
+                    if entity_id is None:
+                        continue
+
+                    try:
+                        entity_id = int(entity_id)
+                    except (TypeError, ValueError):
+                        continue
+
+                    by_entity[entity_type][entity_id] = {
+                        "start_lat": item.get("start_lat"),
+                        "start_lon": item.get("start_lon"),
+                        "end_lat": item.get("end_lat"),
+                        "end_lon": item.get("end_lon"),
+                        "difficulty": item.get("difficulty"),
+                        "lift_type": item.get("lift_type"),
+                        "name": item.get("name"),
+                    }
+                    loaded += 1
+        except OSError as e:
+            logger.warning(f"Could not read coordinate file {file_path}: {e}")
+
+    logger.info(f"Loaded {loaded} coordinate entries from {len(files)} files.")
+    return by_entity
+
+
+def configure_logging(worker_id=None, total_workers=None):
+    if logger.handlers:
+        return
+
+    suffix = "single"
+    if worker_id is not None and total_workers is not None:
+        suffix = f"worker_{worker_id}_of_{total_workers}"
+
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S_%f")
+    log_path = LOG_DIR / f"cleanup_{suffix}_{timestamp}.log"
+
+    formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
+    file_handler = logging.FileHandler(log_path, encoding="utf-8")
+    file_handler.setFormatter(formatter)
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter)
+
+    logger.addHandler(file_handler)
+    logger.addHandler(stream_handler)
+
+
+def shard_items(items, worker_id, total_workers):
+    ordered = sorted(
+        items,
+        key=lambda item: (
+            str(item.get("resort_id", "")),
+            str(item.get("id", "")),
+        ),
+    )
+    return [item for idx, item in enumerate(ordered) if idx % total_workers == worker_id]
 
 
 def api_get(path):
@@ -200,8 +321,9 @@ def load_all():
 # =========================
 # CLEANUP
 # =========================
-def cleanup_entities(entities, resorts, entity_type):
+def cleanup_entities(entities, resorts, entity_type, coord_index):
     seen = set()
+    seen_coord = set()
     valid = []
     to_delete = []
 
@@ -215,17 +337,50 @@ def cleanup_entities(entities, resorts, entity_type):
             continue
         seen.add(key)
 
+        resort = next((r for r in resorts if r["id"] == resort_id), None)
+        if not resort:
+            to_delete.append(e)
+            continue
+
         name = normalize_name(e.get("name"))
-        if not name:
+        fallback_like = is_previous_fallback_name(name, entity_type)
+
+        coord_meta = {}
+        try:
+            coord_meta = coord_index.get(int(osm_id), {})
+        except (TypeError, ValueError):
+            coord_meta = {}
+
+        start_lat = e.get("lat_start")
+        start_lon = e.get("lon_start")
+        end_lat = e.get("lat_end")
+        end_lon = e.get("lon_end")
+
+        if start_lat is None:
+            start_lat = coord_meta.get("start_lat")
+        if start_lon is None:
+            start_lon = coord_meta.get("start_lon")
+        if end_lat is None:
+            end_lat = coord_meta.get("end_lat")
+        if end_lon is None:
+            end_lon = coord_meta.get("end_lon")
+
+        segment_key = build_segment_key(start_lat, start_lon, end_lat, end_lon)
+
+        if not name or fallback_like:
             if entity_type in ("lift", "lifts"):
-                name = generate_fallback_name(
+                name = generate_coordinate_name(
                     "lift",
+                    start_lat=start_lat,
+                    start_lon=start_lon,
                     lift_type=e.get("lift_type"),
                     osm_id=osm_id,
                 )
             else:
-                name = generate_fallback_name(
+                name = generate_coordinate_name(
                     "slope",
+                    start_lat=start_lat,
+                    start_lon=start_lon,
                     difficulty=e.get("difficulty"),
                     osm_id=osm_id,
                 )
@@ -235,11 +390,18 @@ def cleanup_entities(entities, resorts, entity_type):
                 continue
 
         e["name"] = name
+        e["lat_start"] = start_lat
+        e["lon_start"] = start_lon
+        e["lat_end"] = end_lat
+        e["lon_end"] = end_lon
 
-        resort = next((r for r in resorts if r["id"] == resort_id), None)
-        if not resort:
-            to_delete.append(e)
-            continue
+        if segment_key:
+            type_value = e.get("lift_type") if entity_type in ("lift", "lifts") else e.get("difficulty")
+            location_key = (resort_id, type_value, segment_key)
+            if location_key in seen_coord:
+                to_delete.append(e)
+                continue
+            seen_coord.add(location_key)
 
         valid.append(e)
 
@@ -249,7 +411,7 @@ def cleanup_entities(entities, resorts, entity_type):
 # =========================
 # APPLY
 # =========================
-def apply_changes(valid, delete, entity_type, checkpoint=None):
+def apply_changes(valid, delete, entity_type, checkpoint=None, use_checkpoint=True):
     logger.info(f"Processing {entity_type}")
 
     start_index_update = 0
@@ -261,7 +423,7 @@ def apply_changes(valid, delete, entity_type, checkpoint=None):
                 return idx
         return None
 
-    if checkpoint and checkpoint.get("entity_type") == entity_type:
+    if use_checkpoint and checkpoint and checkpoint.get("entity_type") == entity_type:
         phase = checkpoint.get("phase", "update")
         index = checkpoint.get("index", 0)
         checkpoint_id = checkpoint.get("entity_id")
@@ -294,8 +456,9 @@ def apply_changes(valid, delete, entity_type, checkpoint=None):
     for i in range(start_index_update, len(valid)):
         e = valid[i]
 
-        save_checkpoint(entity_type, i, e["id"])
-        save_phase("update")
+        if use_checkpoint:
+            save_checkpoint(entity_type, i, e["id"])
+            save_phase("update")
 
         logger.info(f"Updating {entity_type} ID={e['id']}")
         api_put(f"/{entity_type}/{e['id']}", e)
@@ -305,8 +468,9 @@ def apply_changes(valid, delete, entity_type, checkpoint=None):
     for i in range(start_index_delete, len(delete)):
         e = delete[i]
 
-        save_checkpoint(entity_type, i, e["id"])
-        save_phase("delete")
+        if use_checkpoint:
+            save_checkpoint(entity_type, i, e["id"])
+            save_phase("delete")
 
         logger.warning(f"Deleting {entity_type} ID={e['id']}")
         api_delete(f"/{entity_type}/{e['id']}")
@@ -317,18 +481,58 @@ def apply_changes(valid, delete, entity_type, checkpoint=None):
 # MAIN
 # =========================
 def main():
+    worker_id = int(sys.argv[1]) if len(sys.argv) > 1 else None
+    total_workers = int(sys.argv[2]) if len(sys.argv) > 2 else None
+
+    parallel_mode = (
+        worker_id is not None
+        and total_workers is not None
+        and total_workers > 1
+        and worker_id >= 0
+    )
+
+    if parallel_mode and worker_id >= total_workers:
+        raise ValueError("worker_id must be smaller than total_workers")
+
+    configure_logging(worker_id=worker_id if parallel_mode else None, total_workers=total_workers if parallel_mode else None)
     logger.info("=== Cleanup Script Started ===")
 
-    checkpoint = load_checkpoint()
-    if checkpoint:
-        logger.warning(f"Resuming from checkpoint: {checkpoint}")
+    checkpoint = None
+    if parallel_mode:
+        logger.info(f"Parallel cleanup mode active (worker {worker_id}/{total_workers}). Checkpoint disabled.")
     else:
-        logger.info("No checkpoint found. Starting fresh.")
+        checkpoint = load_checkpoint()
+        if checkpoint:
+            logger.warning(f"Resuming from checkpoint: {checkpoint}")
+        else:
+            logger.info("No checkpoint found. Starting fresh.")
 
+    coord_index = load_coordinate_index()
     resorts, lifts, slopes = load_all()
 
-    clean_lifts, del_lifts = cleanup_entities(lifts, resorts, "lifts")
-    clean_slopes, del_slopes = cleanup_entities(slopes, resorts, "slopes")
+    clean_lifts, del_lifts = cleanup_entities(
+        lifts,
+        resorts,
+        "lifts",
+        coord_index["lifts"],
+    )
+    clean_slopes, del_slopes = cleanup_entities(
+        slopes,
+        resorts,
+        "slopes",
+        coord_index["slopes"],
+    )
+
+    if parallel_mode:
+        clean_lifts = shard_items(clean_lifts, worker_id, total_workers)
+        del_lifts = shard_items(del_lifts, worker_id, total_workers)
+        clean_slopes = shard_items(clean_slopes, worker_id, total_workers)
+        del_slopes = shard_items(del_slopes, worker_id, total_workers)
+        logger.info(
+            "Worker shard sizes | "
+            f"lifts update={len(clean_lifts)}, lifts delete={len(del_lifts)}, "
+            f"slopes update={len(clean_slopes)}, slopes delete={len(del_slopes)}"
+        )
 
     entities = {
         "lifts": (clean_lifts, del_lifts),
@@ -356,9 +560,16 @@ def main():
             if checkpoint and checkpoint.get("entity_type") == entity_type
             else None
         )
-        apply_changes(valid, delete, entity_type, entity_checkpoint)
+        apply_changes(
+            valid,
+            delete,
+            entity_type,
+            entity_checkpoint,
+            use_checkpoint=not parallel_mode,
+        )
 
-    clear_checkpoint()
+    if not parallel_mode:
+        clear_checkpoint()
     logger.info("Cleanup finished successfully.")
 
 

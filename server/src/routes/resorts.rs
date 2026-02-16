@@ -30,6 +30,10 @@ pub struct LiftSummary {
     pub resort_id: String,
     pub name: Option<String>,
     pub lift_type: String,
+    pub lat_start: Option<f64>,
+    pub lon_start: Option<f64>,
+    pub lat_end: Option<f64>,
+    pub lon_end: Option<f64>,
 }
 
 #[derive(Serialize, Clone)]
@@ -38,6 +42,10 @@ pub struct SlopeSummary {
     pub resort_id: String,
     pub name: Option<String>,
     pub difficulty: String,
+    pub lat_start: Option<f64>,
+    pub lon_start: Option<f64>,
+    pub lat_end: Option<f64>,
+    pub lon_end: Option<f64>,
 }
 
 #[derive(Serialize)]
@@ -107,6 +115,21 @@ impl ResortWithRelations {
     }
 }
 
+#[derive(Deserialize)]
+pub struct ResortsQuery {
+    pub summary: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct ResortSummary {
+    pub id: String,
+    pub name: String,
+}
+
+fn is_truthy_flag(value: &str) -> bool {
+    matches!(value.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on")
+}
+
 /* ---------- HELPERS ---------- */
 
 async fn load_lifts_by_resort(
@@ -114,7 +137,9 @@ async fn load_lifts_by_resort(
 ) -> Result<HashMap<String, Vec<LiftSummary>>, Error> {
     let rows = sqlx::query!(
         r#"
-        SELECT id, resort_id, name, lift_type
+        SELECT id, resort_id, name, lift_type,
+               CAST(lat_start AS DOUBLE) AS lat_start, CAST(lon_start AS DOUBLE) AS lon_start,
+               CAST(lat_end AS DOUBLE) AS lat_end, CAST(lon_end AS DOUBLE) AS lon_end
         FROM lifts
         "#
     )
@@ -130,6 +155,10 @@ async fn load_lifts_by_resort(
             resort_id: row.resort_id,
             name: row.name,
             lift_type: row.lift_type,
+            lat_start: row.lat_start,
+            lon_start: row.lon_start,
+            lat_end: row.lat_end,
+            lon_end: row.lon_end,
         });
     }
 
@@ -141,7 +170,9 @@ async fn load_slopes_by_resort(
 ) -> Result<HashMap<String, Vec<SlopeSummary>>, Error> {
     let rows = sqlx::query!(
         r#"
-        SELECT id, resort_id, name, difficulty
+        SELECT id, resort_id, name, difficulty,
+               CAST(lat_start AS DOUBLE) AS lat_start, CAST(lon_start AS DOUBLE) AS lon_start,
+               CAST(lat_end AS DOUBLE) AS lat_end, CAST(lon_end AS DOUBLE) AS lon_end
         FROM slopes
         "#
     )
@@ -157,6 +188,10 @@ async fn load_slopes_by_resort(
             resort_id: row.resort_id,
             name: row.name,
             difficulty: row.difficulty,
+            lat_start: row.lat_start,
+            lon_start: row.lon_start,
+            lat_end: row.lat_end,
+            lon_end: row.lon_end,
         });
     }
 
@@ -166,7 +201,32 @@ async fn load_slopes_by_resort(
 /* ---------- HANDLER ---------- */
 
 // GET /resorts
-pub async fn get_resorts(db: web::Data<MySqlPool>) -> impl Responder {
+pub async fn get_resorts(
+    db: web::Data<MySqlPool>,
+    query: web::Query<ResortsQuery>,
+) -> impl Responder {
+    if query
+        .summary
+        .as_deref()
+        .map(is_truthy_flag)
+        .unwrap_or(false)
+    {
+        let result = sqlx::query_as!(
+            ResortSummary,
+            r#"
+            SELECT id, name
+            FROM resorts
+            "#
+        )
+        .fetch_all(db.get_ref())
+        .await;
+
+        return match result {
+            Ok(summaries) => HttpResponse::Ok().json(summaries),
+            Err(_) => HttpResponse::InternalServerError().finish(),
+        };
+    }
+
     let resorts_result = sqlx::query_as!(
         Resort,
         r#"
@@ -239,7 +299,9 @@ pub async fn get_resort(
 
     let lifts_result = sqlx::query!(
         r#"
-        SELECT id, resort_id, name, lift_type
+        SELECT id, resort_id, name, lift_type,
+               CAST(lat_start AS DOUBLE) AS lat_start, CAST(lon_start AS DOUBLE) AS lon_start,
+               CAST(lat_end AS DOUBLE) AS lat_end, CAST(lon_end AS DOUBLE) AS lon_end
         FROM lifts
         WHERE resort_id = ?
         "#,
@@ -256,6 +318,10 @@ pub async fn get_resort(
                 resort_id: row.resort_id,
                 name: row.name,
                 lift_type: row.lift_type,
+                lat_start: row.lat_start,
+                lon_start: row.lon_start,
+                lat_end: row.lat_end,
+                lon_end: row.lon_end,
             })
             .collect(),
         Err(_) => return HttpResponse::InternalServerError().finish(),
@@ -263,7 +329,9 @@ pub async fn get_resort(
 
     let slopes_result = sqlx::query!(
         r#"
-        SELECT id, resort_id, name, difficulty
+        SELECT id, resort_id, name, difficulty,
+               CAST(lat_start AS DOUBLE) AS lat_start, CAST(lon_start AS DOUBLE) AS lon_start,
+               CAST(lat_end AS DOUBLE) AS lat_end, CAST(lon_end AS DOUBLE) AS lon_end
         FROM slopes
         WHERE resort_id = ?
         "#,
@@ -280,6 +348,10 @@ pub async fn get_resort(
                 resort_id: row.resort_id,
                 name: row.name,
                 difficulty: row.difficulty,
+                lat_start: row.lat_start,
+                lon_start: row.lon_start,
+                lat_end: row.lat_end,
+                lon_end: row.lon_end,
             })
             .collect(),
         Err(_) => return HttpResponse::InternalServerError().finish(),
@@ -374,3 +446,5 @@ pub async fn delete_resort(
         Err(_) => HttpResponse::BadRequest().finish(),
     }
 }
+
+
