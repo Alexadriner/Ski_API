@@ -76,9 +76,13 @@ function createLineEntry(startLat, startLon, endLat, endLon, style) {
 }
 
 function createResortPopupHtml(resort) {
+  const resortName = resort.name ?? "Unknown resort";
+  const detailHref = `/resort/${encodeURIComponent(resortName)}`;
+
   return (
-    `<strong>${resort.name ?? "Unknown resort"}</strong><br/>` +
-    `${resort.geography?.country ?? resort.country ?? "N/A"}`
+    `<strong>${resortName}</strong><br/>` +
+    `${resort.geography?.country ?? resort.country ?? "N/A"}<br/>` +
+    `click <a href="${detailHref}">here</a> for more information`
   );
 }
 
