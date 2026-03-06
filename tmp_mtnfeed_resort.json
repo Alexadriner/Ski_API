@@ -1,0 +1,207 @@
+{
+  "resortIds": [61],
+  "bearerToken": "cku0FJeF71XjrOKXAHWA1wfNfcUr8vqyAWbIwp4v3SQ",
+  "themeName": "palisadesTahoe",
+  "colors": {
+    "loadingColor": "#ff5e00"
+  },
+  "webfontloaderConfig": {
+    "typekit": {
+      "id": "vpm7kbu"
+    }
+  },
+  "utilityFont": "proxima-nova",
+  "brandFont": "Graphik",
+  "loadingFont": "Graphik",
+  "altFont": "proxima-nova",
+  "brandFontWeights": {
+    "thick": "800",
+    "regular": "600"
+  },
+  "utilityFontWeights": {
+    "extraThick": "800",
+    "thick": "700",
+    "medium": "500",
+    "regular": "400"
+  },
+  "addMarginTop": true,
+  "contentBlocks": [
+    {
+      "_type": "mainTitle",
+      "title": "Mountain Report"
+    },
+    {
+      "_type": "header",
+      "isSticky": true,
+      "anchors": [
+        { "_type": "weather" },
+        { "_type": "liftTrailsTabs" },
+        { "_type": "activitiesTabs" },
+        { "_type": "maps" }
+      ]
+    },
+    {
+      "_type": "weather",
+      "_id": "weather-and-conditions",
+      "title": "Weather",
+      "stormAlertBanner": false,
+      "tabs": [
+        { "key": "zero", "isDefault": true },
+        { "key": "one" },
+        { "key": "two" },
+        { "key": "three" },
+        { "key": "four" },
+        { "key": "five" },
+        { "key": "six" }
+      ],
+      "weatherCard": {
+        "items": [
+          { "type": "tempHighLow", "label": "H", "secondLabel": "L" },
+          { "type": "windChill", "label": "Wind Chill" },
+          { "type": "wind", "label": "Wind" }
+        ]
+      },
+      "snowfallCard": {
+        "label": "Base",
+        "hideSnowfallCardFor": ["two", "five"],
+        "hideLast24HoursFor": ["two", "four", "five"],
+        "hideLast7DaysFor": ["two", "four", "five"],
+        "items": [
+          { "type": "baseConditions", "label": "Conditions" },
+          { "type": "seasonTotal", "label": "Season Total" },
+          { "type": "last24Hour", "label": "Last 24 Hour" },
+          { "type": "last7Days", "label": "Last 7 Days" }
+        ]
+      },
+      "forecastCard": {
+        "items": [
+          { "type": "forecastTempHighLow", "label": "H", "secondLabel": "L" },
+          { "type": "forecastWind", "label": "Wind" },
+          { "type": "forecastSkies", "label": "Skies" }
+        ]
+      },
+      "forecastTitleSource": "Mid-mountain",
+      "details": false,
+      "snowFallBannerSource": "zero",
+      "renderSnowfallBannerCondensedVariant": true,
+      "renderSnowfallBanner": false,
+      "snowfallBannerLabels": [
+        { "last12Hours": "Since Lifts Closed" },
+        { "last72Hours": "72 Hours" },
+        { "last7Days": "Last 7 Days" }
+      ],
+      "renderStats": true,
+      "displayStats": {
+        "zero": {
+          "rows": [
+            {
+              "trailsOpenPerTotal": "Open Trails",
+              "liftsOpenPerTotal": "Open Lifts",
+              "activitiesOpenPerTotal": "Mountain Activities",
+              "terrainOpenPercent": "Open Terrain"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "_type": "dailyMessage",
+      "dailyMessage": {
+        "title": "Daily Message",
+        "endPoint": "Report"
+      },
+      "usefulLinks": {
+        "title": "More Resources",
+        "links": "dataFeedUsefulLinks"
+      }
+    },
+    {
+      "_type": "promo",
+      "image": "dataFeedPromo"
+    },
+    {
+      "_type": "liftTrailsTabs",
+      "_id": "lift-and-trail-status",
+      "title": "Lifts & Trails",
+      "allTabsLabel": "All Lifts/Trails"
+    },
+    {
+      "_type": "lifts",
+      "title": "Lifts",
+      "options": {
+        "showClosedToggleDefaultValue": false
+      }
+    },
+    {
+      "_type": "trailsWidget",
+      "title": "Trails",
+      "options": {
+        "openEndpoint": "TotalOpenTrails",
+        "totalEndpoint": "TotalTrails",
+        "showClosedToggleDefaultValue": true,
+        "showLegendToggleDefaultValue": true,
+        "showUphillToggleDefaultValue": false,
+        "showUphillToggle": false,
+        "showLegendOnLoad": true,
+        "showSort": true
+      },
+      "trailFeatureMappings": {
+        "SnowMaking": "Snowmaking",
+        "Snowmaking Tonight": "Snowmaking Tonight",
+        "Overnight": "Overnight",
+        "Nighttime": "Nighttime",
+        "Groomers Choice": "Groomers Choice",
+        "Grooming": "Grooming",
+        "Grooming 1st Shift": "Grooming 1st Shift",
+        "Grooming 2nd Shift": "Grooming 2nd Shift",
+        "Grooming Tonight": "Grooming Tonight",
+        "Grooming Top": "Grooming Top",
+        "Grooming Bottom": "Grooming Bottom",
+        "Grooming Nightly": "Grooming Overnight",
+        "NightSkiing": "Night Skiing",
+        "Moguls": "Moguls",
+        "Moguls Top": "Moguls Top",
+        "Moguls Bottom": "Moguls Bottom",
+        "Glades": "Glades",
+        "Touring": "Touring",
+        "Nordic": "Nordic",
+        "TerrainParkOnRun": "Terrain Park",
+        "RunOfTheDay": "Run of the Day"
+      },
+      "sortOptionsLabelMappings": {
+        "Alphabetical (A-Z)": "Alphabetical (A-Z)",
+        "Alphabetical (Z-A)": "Alphabetical (Z-A)",
+        "Easiest-Difficult": "Easiest-Difficult",
+        "Difficult-Easiest": "Difficult-Easiest",
+        "Grooming Only": "Grooming Only",
+        "Night Session Only": "Night Skiing Only",
+        "Snow Making Only": "Snowmaking Only",
+        "Snowmaking Tonight": "Snowmaking Tonight",
+        "Snowmaking Overnight": "Snowmaking Overnight",
+        "Snowmaking Nighttime": "Snowmaking Nighttime"
+      }
+    },
+    {
+      "_type": "activitiesTabs",
+      "_id": "activity-status",
+      "title": "Activities",
+      "allTabsLabel": "All Activities",
+      "categorizedActivitiesSwitchOn": true
+    },
+    {
+      "_type": "activities",
+      "title": "Activities",
+      "_comment": "Make sure to have the same boolean value for categorizedActivitiesSwitchOn in the activitiesTab content block",
+      "categorizedActivitiesSwitchOn": true,
+      "link": "dataFeed"
+    },
+    {
+      "_type": "maps",
+      "_id": "maps",
+      "title": "Trail Maps",
+      "extraMarginTop": false,
+      "link": "dataFeed",
+      "maps": "dataFeed"
+    }
+  ]
+}

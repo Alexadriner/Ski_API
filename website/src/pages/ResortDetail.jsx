@@ -30,6 +30,22 @@ export default function ResortDetail() {
 
   const lifts = resort.lifts ?? [];
   const slopes = resort.slopes ?? [];
+  const liveStatus = resort.live_status ?? {};
+
+  const getLiftType = (lift) => lift.lift_type ?? lift.display?.lift_type ?? "N/A";
+  const getLiftStatus = (lift) =>
+    lift.status?.operational_status ?? lift.operational_status ?? "unknown";
+
+  const getSlopeDifficulty = (slope) => slope.difficulty ?? slope.display?.difficulty ?? "N/A";
+  const getSlopeStatus = (slope) =>
+    slope.status?.operational_status ?? slope.operational_status ?? "unknown";
+  const getSlopeGrooming = (slope) =>
+    slope.status?.grooming_status ?? slope.grooming_status ?? "unknown";
+
+  const formatStatusLabel = (value) =>
+    String(value ?? "unknown")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (m) => m.toUpperCase());
 
   return (
     <div className="page-container resort-page">
@@ -50,6 +66,8 @@ export default function ResortDetail() {
           <p>Ski area type: {skiAreaType ?? "N/A"}</p>
           <p>Total slopes: {slopes.length}</p>
           <p>Total lifts: {lifts.length}</p>
+          <p>Open lifts: {liveStatus.lifts_open_count ?? "N/A"}</p>
+          <p>Open slopes: {liveStatus.slopes_open_count ?? "N/A"}</p>
           <p>
             Coordinates:{" "}
             {latitude != null && longitude != null ? `${latitude}, ${longitude}` : "N/A"}
@@ -66,6 +84,8 @@ export default function ResortDetail() {
               <tr>
                 <th>Name</th>
                 <th>Difficulty</th>
+                <th>Status</th>
+                <th>Grooming</th>
               </tr>
             </thead>
 
@@ -73,8 +93,22 @@ export default function ResortDetail() {
               {slopes.map((slope) => (
                 <tr key={slope.id}>
                   <td>{slope.name ?? "Unknown"}</td>
-                  <td className={`difficulty ${slope.difficulty}`}>
-                    {slope.difficulty ?? "N/A"}
+                  <td className={`difficulty ${getSlopeDifficulty(slope)}`}>
+                    {getSlopeDifficulty(slope)}
+                  </td>
+                  <td>
+                    <span className={`status-badge ${String(getSlopeStatus(slope)).toLowerCase()}`}>
+                      {formatStatusLabel(getSlopeStatus(slope))}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      className={`status-badge grooming ${String(
+                        getSlopeGrooming(slope)
+                      ).toLowerCase()}`}
+                    >
+                      {formatStatusLabel(getSlopeGrooming(slope))}
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -90,6 +124,7 @@ export default function ResortDetail() {
               <tr>
                 <th>Name</th>
                 <th>Type</th>
+                <th>Status</th>
               </tr>
             </thead>
 
@@ -97,7 +132,12 @@ export default function ResortDetail() {
               {lifts.map((lift) => (
                 <tr key={lift.id}>
                   <td>{lift.name ?? "Unnamed"}</td>
-                  <td>{lift.lift_type ?? "N/A"}</td>
+                  <td>{getLiftType(lift)}</td>
+                  <td>
+                    <span className={`status-badge ${String(getLiftStatus(lift)).toLowerCase()}`}>
+                      {formatStatusLabel(getLiftStatus(lift))}
+                    </span>
+                  </td>
                 </tr>
               ))}
             </tbody>

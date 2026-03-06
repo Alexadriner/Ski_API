@@ -12,6 +12,7 @@ use auth::ApiKeyAuth;
 use routes::resorts::*;
 use routes::slopes::*;
 use routes::lifts::*;
+use routes::status::*;
 
 use routes::auth::{signup, signin, me};
 
@@ -75,6 +76,12 @@ async fn main() -> std::io::Result<()> {
                 .route("/lifts/{id}", web::delete().to(delete_lift))
                 .route("/lifts/by_resort/{resort_id}", web::get().to(get_lifts_by_resort))
                 .route("/lifts/by_resort/{resort_id}", web::delete().to(delete_lifts_by_resort))
+
+                // Scrape status / snapshots
+                .route("/scrape-runs", web::get().to(get_scrape_runs))
+                .route("/scrape-runs/{id}", web::get().to(get_scrape_run))
+                .route("/status-snapshots", web::get().to(get_status_snapshots))
+                .route("/resorts/{resort_id}/status-snapshots", web::get().to(get_status_snapshots_by_resort))
 
 
                 // User
