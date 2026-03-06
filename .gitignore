@@ -17,6 +17,8 @@ Thumbs.db
 
 # --- Logs ---
 *.log
+/log
+/log/
 
 # --- Environment / Secrets ---
 .env
@@ -26,3 +28,32 @@ Thumbs.db
 coverage/
 *.profraw
 *.profdata
+
+# --- Texts ---
+.txt
+.txt.*
+
+# --- Target ---
+/target/
+target/
+
+*.pdb
+
+# --- Database backups ---
+*.sql
+*.dump
+*.bak
+
+# --- Backup folders ---
+backups/
+db_backups/
+database_backups/
+
+# --- Local database files (if SQLite) ---
+*.db
+*.sqlite
+*.sqlite3
+
+# --- checkpoints ---
+/checkpoints
+/checkpoints/

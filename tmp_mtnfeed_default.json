@@ -1,0 +1,40 @@
+{
+  "colors": {
+    "loadingColor": "black",
+    "loadingBackgroundColor": "white"
+  },
+  "webfontloaderConfig": {
+    "typekit": {
+      "id": "vpm7kbu"
+    }
+  },
+  "utilityFont": "proxima-nova",
+  "brandFont": "adelle",
+  "loadingFont": "adelle",
+  "altFont": "proxima-nova-condensed",
+  "stickyNav": true,
+  "stickyNavTitle": "Winter report",
+  "trailFeatureMappings": {
+    "SnowMaking": "Snowmaking",
+    "Snowmaking Tonight": "Snowmaking Tonight",
+    "Overnight": "Overnight",
+    "Nighttime": "Nighttime",
+    "Groomers Choice": "Groomers Choice",
+    "Grooming": "Grooming",
+    "Grooming 1st Shift": "Grooming 1st Shift",
+    "Grooming 2nd Shift": "Grooming 2nd Shift",
+    "Grooming Tonight": "Grooming Tonight",
+    "Grooming Top": "Grooming Top",
+    "Grooming Bottom": "Grooming Bottom",
+    "Grooming Nightly": "Grooming Overnight",
+    "NightSkiing": "Night Skiing",
+    "Moguls": "Moguls",
+    "Moguls Top": "Moguls Top",
+    "Moguls Bottom": "Moguls Bottom",
+    "Glades": "Glades",
+    "Touring": "Touring",
+    "Nordic": "Nordic",
+    "TerrainParkOnRun": "Terrain Park",
+    "RunOfTheDay": "Run of the Day"
+  }
+}

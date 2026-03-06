@@ -1,0 +1,255 @@
+﻿.api-page {
+  --api-blue: #1e6bd6;
+  --api-blue-dark: #124ea0;
+  --api-blue-soft: #e9f2ff;
+  --api-card-shadow: 0 14px 32px rgba(12, 45, 92, 0.15);
+  --api-subscribed: #76c7bb;
+  --api-subscribed-dark: #4ea99c;
+  --api-text: #0f2342;
+
+  color: var(--api-text);
+  padding-top: 2rem;
+  padding-bottom: 3rem;
+  width: 100%;
+  text-align: center;
+}
+
+.api-page.page-container {
+  padding-left: 1vw;
+  padding-right: 1vw;
+}
+
+.api-hero {
+  margin: 0 0 2rem;
+  width: 100%;
+  padding: 2rem;
+  border-radius: 18px;
+  background: linear-gradient(130deg, #0f4ea8 0%, #1e6bd6 55%, #4c97ff 100%);
+  color: #fff;
+  box-shadow: var(--api-card-shadow);
+}
+
+.api-hero h1 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.api-hero p {
+  max-width: 780px;
+}
+
+.api-pricing-section {
+  margin-top: 1.5rem;
+}
+
+.api-pricing-grid {
+  margin-top: 1.25rem;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  width: 100%;
+  align-items: stretch;
+}
+
+.api-pricing-card {
+  padding: 1.25rem;
+  border-radius: 14px;
+  background: linear-gradient(170deg, #2d7ce4 0%, #1e6bd6 100%);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(16, 62, 128, 0.22);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-height: 100%;
+}
+
+.api-pricing-card.is-subscribed {
+  background: linear-gradient(170deg, #8ad8cb 0%, var(--api-subscribed) 100%);
+}
+
+.api-pricing-card.plan-free {
+  background: linear-gradient(170deg, #246dcb 0%, #1658b5 100%);
+}
+
+.api-pricing-card.plan-free.is-subscribed {
+  background: linear-gradient(170deg, #246dcb 0%, #1658b5 100%);
+}
+
+.api-pricing-card h3 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.api-plan-price {
+  margin: 0.25rem 0 0.4rem;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.api-pricing-card p {
+  margin: 0;
+}
+
+.api-pricing-card ul {
+  margin: 0.5rem 0 0.9rem;
+  padding-left: 1.15rem;
+  flex-grow: 1;
+}
+
+.api-pricing-card li {
+  margin-bottom: 0.25rem;
+}
+
+.api-plan-button {
+  width: 100%;
+  min-width: 0;
+  background: var(--api-blue-dark);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.api-plan-button:hover:not(:disabled) {
+  background: #0c3f85;
+}
+
+.api-plan-button:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.api-plan-button.is-subscribed {
+  background: var(--api-subscribed-dark);
+  color: #f4fffd;
+}
+
+.api-plan-button.is-subscribed:hover {
+  background: var(--api-subscribed-dark);
+}
+
+.api-login-hint {
+  margin-top: 0.85rem;
+  color: #2d4c76;
+}
+
+.api-docs-section {
+  margin-top: 2.5rem;
+  width: 100%;
+  text-align: left;
+}
+
+.api-docs-section h2,
+.api-docs-section p,
+.api-docs-section strong,
+.api-docs-section code,
+.api-docs-section pre,
+.api-docs-section ul,
+.api-docs-section li {
+  text-align: left;
+}
+
+.api-docs-grid {
+  margin-top: 1rem;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+  width: 100%;
+}
+
+.api-endpoint-card {
+  background: var(--api-blue-soft);
+  border: 1px solid #cfe2ff;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.api-endpoint-head {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.55rem;
+}
+
+.api-endpoint-head code {
+  background: #fff;
+  border-radius: 7px;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #d4e3fb;
+}
+
+.api-method {
+  border-radius: 999px;
+  padding: 0.24rem 0.65rem;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.api-method-get {
+  background: #0f8b61;
+}
+
+.api-method-post {
+  background: #0f4ea8;
+}
+
+.api-method-put-delete {
+  background: #7a4ab6;
+}
+
+.api-endpoint-card p {
+  margin: 0.35rem 0;
+}
+
+.api-endpoint-card pre {
+  margin: 0.7rem 0 0;
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #d4e3fb;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.api-doc-fields {
+  margin: 0.45rem 0 0.6rem;
+  padding-left: 1.15rem;
+}
+
+.api-doc-fields li {
+  margin-bottom: 0.25rem;
+}
+
+.api-page ul,
+.api-page li {
+  text-align: left;
+}
+
+@media (max-width: 1380px) {
+  .api-pricing-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .api-pricing-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .api-page {
+    padding-top: 1.25rem;
+  }
+
+  .api-hero {
+    padding: 1.25rem;
+  }
+
+  .api-pricing-grid {
+    grid-template-columns: 1fr;
+  }
+}

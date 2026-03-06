@@ -28,3 +28,5 @@ argon2 = "0.5"
 password-hash = "0.5"
 
 time = "0.3.44"
+
+actix-cors = "0.7.1"

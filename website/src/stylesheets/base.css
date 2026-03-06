@@ -1,0 +1,84 @@
+/* Base Style for every Webpage */
+
+/* ============================= */
+/* Global Base Styles            */
+/* ============================= */
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background-color: white;
+    color: black;
+    font-family: Arial, sans-serif;
+}
+
+/* ============================= */
+/* Seiten-Layout                 */
+/* ============================= */
+
+/* Grundcontainer für alle Seiten */
+.page-container {
+    padding-left: 2vw;
+    padding-right: 2vw;
+}
+
+/* ============================= */
+/* Text                          */
+/* ============================= */
+
+p, span, div {
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+/* ============================= */
+/* Überschriften                 */
+/* ============================= */
+
+h1, h2, h3, h4, h5, h6 {
+    font-size: 2.5rem;   /* 2,5x größer als normaler Text */
+    font-weight: bold;
+    margin: 0.6em 0;
+}
+
+/* ============================= */
+/* Buttons                       */
+/* ============================= */
+
+button {
+    min-width: 220px;
+    padding: 14px 20px;
+    font-size: 1rem;
+    font-weight: bold;
+    color: white;
+    background-color: #1e6bd6;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s, box-shadow 0.1s;
+}
+
+button:hover {
+    background-color: #1553a8;
+}
+
+/* ============================= */
+/* Input Styling                 */
+/* ============================= */
+
+input:not(.search-input) {
+    width: 320px;
+    max-width: 90%;
+    padding: 12px 16px;
+    margin: 20px 0;
+    font-size: 1rem;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input:focus {
+    border-color: #1e88e5;
+    box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.2);
+}

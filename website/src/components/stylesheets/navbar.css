@@ -1,0 +1,58 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+* {
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+/* ============================= */
+/* Navbar                        */
+/* ============================= */
+
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch;
+
+    background-color: #1e6bd6;
+    width: 100%;
+
+    padding: 0;
+}
+
+/* Linke & rechte Sektion */
+.nav-section {
+    display: flex;
+}
+
+/* ============================= */
+/* Buttons                       */
+/* ============================= */
+
+.nav-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+
+    color: white;
+    text-decoration: none;
+
+    padding: 15px 18px;
+
+    height: 100%;
+
+    background-color: #1e6bd6;
+    transition: background-color 0.2s ease;
+}
+
+.nav-button:hover {
+    background-color: #1553a8;
+}
