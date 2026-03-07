@@ -11,8 +11,9 @@ function normalizePath(path) {
 export async function apiFetch(path, options = {}) {
   const url = new URL(`${API_BASE}${normalizePath(path)}`);
   const apiKey = options.apiKey || localStorage.getItem("apiKey") || FALLBACK_API_KEY;
+  const method = String(options.method || "GET").toUpperCase();
 
-  if (apiKey) {
+  if (apiKey && method === "GET") {
     url.searchParams.set("api_key", apiKey);
   }
 
@@ -20,8 +21,10 @@ export async function apiFetch(path, options = {}) {
   const res = await fetch(url.toString(), {
     headers: {
       "Content-Type": "application/json",
+      ...(apiKey && method !== "GET" ? { Authorization: `Bearer ${apiKey}` } : {}),
       ...(fetchOptions.headers || {}),
     },
+    method,
     ...fetchOptions,
   });
 

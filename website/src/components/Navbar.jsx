@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import "./stylesheets/navbar.css";
 
 export default function Navbar() {
-  const { loggedIn, logout } = useAuth();
+  const { loggedIn, logout, user } = useAuth();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -26,6 +26,9 @@ export default function Navbar() {
         {loggedIn ? (
           <>
             <Link className="nav-button" to="/user">Account</Link>
+            {user?.is_admin && (
+              <Link className="nav-button" to="/admin">Admin</Link>
+            )}
             <button className="nav-button" type="button" onClick={handleLogout}>
               Logout
             </button>

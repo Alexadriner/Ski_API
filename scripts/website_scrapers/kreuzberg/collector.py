@@ -10,12 +10,12 @@ from pathlib import Path
 
 import requests
 
-from scripts.website_scrapers.palisades_tahoe.scraper import PalisadesTahoeScraper
+from scripts.website_scrapers.kreuzberg.scraper import KreuzbergScraper
 
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
-OUT_DIR = ROOT_DIR / "checkpoints" / "website_scrapers" / "palisades_tahoe"
-LOG_DIR = ROOT_DIR / "logs" / "website_scrapers" / "palisades_tahoe"
+OUT_DIR = ROOT_DIR / "checkpoints" / "website_scrapers" / "kreuzberg"
+LOG_DIR = ROOT_DIR / "logs" / "website_scrapers" / "kreuzberg"
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8080")
 API_KEY = os.getenv("API_KEY", "R3StTY4OfadeFJZurXdZ1pZMVbWB3zWuL6FnuPGIbvA")
 HEADERS = {
@@ -60,11 +60,18 @@ def api_put(path: str, payload: dict) -> None:
     if r.status_code not in (200, 201):
         raise RuntimeError(f"PUT {path} failed: {r.status_code} {r.text}")
 
-def api_delete(path: str) -> None:
+
+def api_post(path: str, payload: dict) -> dict | None:
     url = f"{API_BASE_URL}{path}"
-    r = requests.delete(url, headers=HEADERS, timeout=30)
-    if r.status_code not in (200, 204):
-        raise RuntimeError(f"DELETE {path} failed: {r.status_code} {r.text}")
+    r = requests.post(url, json=payload, headers=HEADERS, timeout=30)
+    if r.status_code not in (200, 201):
+        raise RuntimeError(f"POST {path} failed: {r.status_code} {r.text}")
+    if not r.text.strip():
+        return None
+    try:
+        return r.json()
+    except ValueError:
+        return None
 
 
 def normalize_name(value: str | None) -> str:
@@ -80,40 +87,6 @@ def normalize_name(value: str | None) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def resolve_by_name(scraped_name: str | None, by_name: dict[str, dict]) -> dict | None:
-    key = normalize_name(scraped_name)
-    if not key:
-        return None
-    if key in by_name:
-        return by_name[key]
-
-    # Fuzzy fallback: if exactly one near-match exists.
-    candidates = []
-    for existing_key, existing in by_name.items():
-        if key in existing_key or existing_key in key:
-            candidates.append(existing)
-    if len(candidates) == 1:
-        return candidates[0]
-    return None
-
-
-def normalize_time(value: str | None) -> str | None:
-    if not value:
-        return None
-    text = str(value).strip()
-    if not text or text == "--":
-        return None
-
-    for fmt in ("%I:%M %p", "%I:%M:%S %p", "%H:%M", "%H:%M:%S"):
-        try:
-            dt = datetime.strptime(text, fmt)
-            return dt.strftime("%H:%M:%S")
-        except ValueError:
-            pass
-
-    return None
-
-
 def normalize_datetime(value: str | None) -> str | None:
     if not value:
         return None
@@ -121,15 +94,12 @@ def normalize_datetime(value: str | None) -> str | None:
     if not text or text == "--":
         return None
 
-    for fmt in ("%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S"):
         try:
             dt = datetime.strptime(text, fmt)
-            if dt.tzinfo is not None:
-                dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
             return dt.strftime("%Y-%m-%d %H:%M:%S")
         except ValueError:
             pass
-
     return None
 
 
@@ -164,12 +134,12 @@ def sync_resort_status_to_api(resort_id: str, snapshot: dict) -> None:
         if resort.get("ski_area")
         else resort.get("ski_area_type")
         or "alpine",
-        "official_website": (resort.get("sources") or {}).get("official_website"),
-        "lift_status_url": (resort.get("sources") or {}).get("lift_status_url") or live.get("lift_status_url"),
-        "slope_status_url": (resort.get("sources") or {}).get("slope_status_url") or live.get("slope_status_url"),
-        "snow_report_url": (resort.get("sources") or {}).get("snow_report_url") or live.get("snow_report_url"),
-        "weather_url": (resort.get("sources") or {}).get("weather_url") or live.get("weather_url"),
-        "status_provider": live.get("status_provider") or (resort.get("sources") or {}).get("status_provider"),
+        "official_website": (resort.get("sources") or {}).get("official_website") or live.get("official_website"),
+        "lift_status_url": live.get("lift_status_url"),
+        "slope_status_url": live.get("slope_status_url"),
+        "snow_report_url": live.get("snow_report_url"),
+        "weather_url": live.get("weather_url"),
+        "status_provider": live.get("status_provider"),
         "status_last_scraped_at": normalize_datetime(live.get("status_last_scraped_at")),
         "lifts_open_count": live.get("lifts_open_count"),
         "slopes_open_count": live.get("slopes_open_count"),
@@ -212,58 +182,45 @@ def build_lift_payload(existing: dict, scraped: dict, resort_id: str) -> dict:
         "name_normalized": display.get("normalized_name") or existing.get("name_normalized"),
         "operational_status": scraped.get("operational_status") or status.get("operational_status") or "unknown",
         "operational_note": scraped.get("operational_note") or status.get("note"),
-        "planned_open_time": normalize_time(scraped.get("planned_open_time")) or normalize_time(
-            status.get("planned_open_time")
-        ),
-        "planned_close_time": normalize_time(scraped.get("planned_close_time")) or normalize_time(
-            status.get("planned_close_time")
-        ),
+        "planned_open_time": status.get("planned_open_time"),
+        "planned_close_time": status.get("planned_close_time"),
         "status_updated_at": normalize_datetime(scraped.get("status_updated_at"))
         or normalize_datetime(status.get("updated_at")),
         "status_source_url": scraped.get("status_source_url") or source.get("source_url"),
     }
 
 
-def build_slope_payload(existing: dict, scraped: dict, resort_id: str) -> dict:
-    display = existing.get("display") or {}
-    geometry = existing.get("geometry") or {}
-    start = geometry.get("start") or {}
-    end = geometry.get("end") or {}
-    specs = existing.get("specs") or {}
-    source = existing.get("source") or {}
-    status = existing.get("status") or {}
-
+def build_new_lift_payload(scraped: dict, resort_id: str) -> dict:
+    name = scraped.get("name")
     return {
         "resort_id": resort_id,
-        "name": existing.get("name"),
-        "difficulty": display.get("difficulty") or existing.get("difficulty"),
-        "length_m": specs.get("length_m"),
-        "vertical_drop_m": specs.get("vertical_drop_m"),
-        "average_gradient": specs.get("average_gradient"),
-        "max_gradient": specs.get("max_gradient"),
-        "snowmaking": specs.get("snowmaking"),
-        "night_skiing": specs.get("night_skiing"),
-        "family_friendly": specs.get("family_friendly"),
-        "race_slope": specs.get("race_slope"),
-        "lat_start": start.get("latitude"),
-        "lon_start": start.get("longitude"),
-        "lat_end": end.get("latitude"),
-        "lon_end": end.get("longitude"),
-        "source_system": source.get("system") or existing.get("source_system"),
-        "source_entity_id": source.get("entity_id"),
-        "name_normalized": display.get("normalized_name") or existing.get("name_normalized"),
-        "operational_status": scraped.get("operational_status") or status.get("operational_status") or "unknown",
-        "grooming_status": scraped.get("grooming_status") or status.get("grooming_status") or "unknown",
-        "operational_note": scraped.get("operational_note") or status.get("note"),
-        "status_updated_at": normalize_datetime(scraped.get("status_updated_at"))
-        or normalize_datetime(status.get("updated_at")),
-        "status_source_url": scraped.get("status_source_url") or source.get("source_url"),
+        "name": name,
+        "lift_type": "draglift",
+        "capacity_per_hour": None,
+        "seats": None,
+        "bubble": False,
+        "heated_seats": False,
+        "year_built": None,
+        "altitude_start_m": None,
+        "altitude_end_m": None,
+        "lat_start": None,
+        "lon_start": None,
+        "lat_end": None,
+        "lon_end": None,
+        "source_system": "osm",
+        "source_entity_id": scraped.get("source_entity_id"),
+        "name_normalized": normalize_name(name) or None,
+        "operational_status": scraped.get("operational_status") or "unknown",
+        "operational_note": scraped.get("operational_note"),
+        "planned_open_time": None,
+        "planned_close_time": None,
+        "status_updated_at": normalize_datetime(scraped.get("status_updated_at")),
+        "status_source_url": scraped.get("status_source_url"),
     }
 
 
-def sync_entities_to_api(resort_id: str, snapshot: dict) -> None:
+def sync_lifts_to_api(resort_id: str, snapshot: dict) -> None:
     existing_lifts = api_get(f"/lifts/by_resort/{resort_id}")
-    existing_slopes = api_get(f"/slopes/by_resort/{resort_id}")
 
     lifts_by_source = {}
     lifts_by_name = {}
@@ -275,30 +232,35 @@ def sync_entities_to_api(resort_id: str, snapshot: dict) -> None:
         if name:
             lifts_by_name[name] = item
 
-    slopes_by_source = {}
-    slopes_by_name = {}
-    for item in existing_slopes if isinstance(existing_slopes, list) else []:
-        source_id = ((item.get("source") or {}).get("entity_id") or "").strip()
-        name = normalize_name(item.get("name"))
-        if source_id:
-            slopes_by_source[source_id] = item
-        if name:
-            slopes_by_name[name] = item
-
-    lift_updates = 0
-    slope_updates = 0
-    matched_lift_ids: set[int] = set()
-    matched_slope_ids: set[int] = set()
-
+    updates = 0
+    creates = 0
     for scraped in snapshot.get("lifts", []):
         source_id = (scraped.get("source_entity_id") or "").strip()
         name_key = normalize_name(scraped.get("name"))
-        existing = lifts_by_source.get(source_id) or lifts_by_name.get(name_key) or resolve_by_name(
-            scraped.get("name"), lifts_by_name
-        )
+        existing = lifts_by_source.get(source_id) or lifts_by_name.get(name_key)
         if not existing:
+            try:
+                payload = build_new_lift_payload(scraped, resort_id)
+                created = api_post("/lifts", payload) or {}
+                creates += 1
+                created_id = created.get("id")
+                logging.info(
+                    "Created new lift for %s: name=%s source_entity_id=%s id=%s",
+                    resort_id,
+                    scraped.get("name"),
+                    source_id or None,
+                    created_id,
+                )
+            except Exception as exc:
+                logging.warning(
+                    "Lift create failed for resort=%s name=%s source_entity_id=%s: %s",
+                    resort_id,
+                    scraped.get("name"),
+                    source_id or None,
+                    exc,
+                )
             continue
-        matched_lift_ids.add(existing["id"])
+
         payload = build_lift_payload(existing, scraped, resort_id)
         current_status = (existing.get("status") or {}).get("operational_status")
         current_note = (existing.get("status") or {}).get("note")
@@ -307,9 +269,10 @@ def sync_entities_to_api(resort_id: str, snapshot: dict) -> None:
             and (payload.get("operational_note") or None) == (current_note or None)
         ):
             continue
+
         try:
             api_put(f"/lifts/{existing['id']}", payload)
-            lift_updates += 1
+            updates += 1
         except Exception as exc:
             logging.warning(
                 "Lift sync failed for id=%s name=%s: %s",
@@ -318,83 +281,11 @@ def sync_entities_to_api(resort_id: str, snapshot: dict) -> None:
                 exc,
             )
 
-    for scraped in snapshot.get("slopes", []):
-        source_id = (scraped.get("source_entity_id") or "").strip()
-        name_key = normalize_name(scraped.get("name"))
-        existing = slopes_by_source.get(source_id) or slopes_by_name.get(name_key) or resolve_by_name(
-            scraped.get("name"), slopes_by_name
-        )
-        if not existing:
-            continue
-        matched_slope_ids.add(existing["id"])
-        payload = build_slope_payload(existing, scraped, resort_id)
-        current = existing.get("status") or {}
-        if (
-            payload.get("operational_status") == current.get("operational_status")
-            and payload.get("grooming_status") == current.get("grooming_status")
-            and (payload.get("operational_note") or None) == (current.get("note") or None)
-        ):
-            continue
-        try:
-            api_put(f"/slopes/{existing['id']}", payload)
-            slope_updates += 1
-        except Exception as exc:
-            logging.warning(
-                "Slope sync failed for id=%s name=%s: %s",
-                existing.get("id"),
-                existing.get("name"),
-                exc,
-            )
-
-    # Remove unmatched entities for this resort when they still have no useful status.
-    # This keeps the resort clean from OSM leftovers that are not part of website feed.
-    deleted_lifts = 0
-    deleted_slopes = 0
-
-    for item in existing_lifts if isinstance(existing_lifts, list) else []:
-        item_id = item.get("id")
-        if item_id in matched_lift_ids:
-            continue
-        status = ((item.get("status") or {}).get("operational_status") or "").strip().lower()
-        has_status = status not in ("", "unknown")
-        if has_status:
-            continue
-        try:
-            api_delete(f"/lifts/{item_id}")
-            deleted_lifts += 1
-        except Exception as exc:
-            logging.warning("Lift delete failed for id=%s name=%s: %s", item_id, item.get("name"), exc)
-
-    for item in existing_slopes if isinstance(existing_slopes, list) else []:
-        item_id = item.get("id")
-        if item_id in matched_slope_ids:
-            continue
-        status_obj = item.get("status") or {}
-        status = (status_obj.get("operational_status") or "").strip().lower()
-        grooming = (status_obj.get("grooming_status") or "").strip().lower()
-        has_status = (status not in ("", "unknown")) or (grooming not in ("", "unknown"))
-        if has_status:
-            continue
-        try:
-            api_delete(f"/slopes/{item_id}")
-            deleted_slopes += 1
-        except Exception as exc:
-            logging.warning(
-                "Slope delete failed for id=%s name=%s: %s", item_id, item.get("name"), exc
-            )
-
-    logging.info(
-        "API sync updated %s lifts and %s slopes for %s (deleted %s lifts / %s slopes)",
-        lift_updates,
-        slope_updates,
-        resort_id,
-        deleted_lifts,
-        deleted_slopes,
-    )
+    logging.info("API sync updated %s lifts and created %s lifts for %s", updates, creates, resort_id)
 
 
 def run_collection_loop(resort_id: str, interval_seconds: int, once: bool, sync_api: bool) -> None:
-    scraper = PalisadesTahoeScraper()
+    scraper = KreuzbergScraper()
     output_file = OUT_DIR / f"{resort_id}_status.jsonl"
 
     while True:
@@ -407,12 +298,12 @@ def run_collection_loop(resort_id: str, interval_seconds: int, once: bool, sync_
             append_jsonl(output_file, payload)
             if sync_api:
                 sync_resort_status_to_api(resort_id, payload)
-                sync_entities_to_api(resort_id, payload)
+                sync_lifts_to_api(resort_id, payload)
             logging.info(
-                "Collected snapshot for %s: lifts_open=%s slopes_open=%s",
+                "Collected snapshot for %s: lifts_open=%s lifts_total=%s",
                 resort_id,
                 payload.get("resort", {}).get("lifts_open_count"),
-                payload.get("resort", {}).get("slopes_open_count"),
+                len(payload.get("lifts", [])),
             )
         except Exception as exc:
             logging.exception("Collector iteration failed: %s", exc)
@@ -427,9 +318,9 @@ def run_collection_loop(resort_id: str, interval_seconds: int, once: bool, sync_
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Collect Palisades Tahoe website status snapshots every N seconds."
+        description="Collect Kreuzberg website status snapshots every N seconds."
     )
-    parser.add_argument("--resort-id", default="palisades-tahoe")
+    parser.add_argument("--resort-id", default="kreuzberg")
     parser.add_argument("--interval-seconds", type=int, default=300)
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--no-sync-api", action="store_true")

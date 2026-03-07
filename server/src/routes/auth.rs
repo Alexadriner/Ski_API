@@ -17,7 +17,8 @@ pub struct SignupRequest {
 
 #[derive(Deserialize)]
 pub struct SigninRequest {
-    pub email: String,
+    pub email: Option<String>,
+    pub username: Option<String>,
     pub password: String,
 }
 
@@ -85,13 +86,23 @@ pub async fn signin(
     pool: web::Data<MySqlPool>,
     data: web::Json<SigninRequest>,
 ) -> impl Responder {
+    let email = data.email.as_deref().unwrap_or("").trim();
+    let username = data.username.as_deref().unwrap_or("").trim();
+    let identifier = if !email.is_empty() { email } else { username };
+
+    if identifier.is_empty() {
+        return HttpResponse::BadRequest().body("Missing username or email");
+    }
+
     let user = sqlx::query!(
         r#"
         SELECT id, name, email, password_hash, is_admin, subscription
         FROM users
-        WHERE email = ?
+        WHERE email = ? OR name = ?
+        LIMIT 1
         "#,
-        data.email
+        identifier,
+        identifier
     )
     .fetch_optional(pool.get_ref())
     .await;

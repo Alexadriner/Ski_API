@@ -126,10 +126,10 @@ function prepareResort(resort) {
   const lifts = (resort.lifts ?? [])
     .map((lift) =>
       createLineEntry(
-        lift.lat_start,
-        lift.lon_start,
-        lift.lat_end,
-        lift.lon_end,
+        lift.geometry?.start?.latitude ?? lift.lat_start,
+        lift.geometry?.start?.longitude ?? lift.lon_start,
+        lift.geometry?.end?.latitude ?? lift.lat_end,
+        lift.geometry?.end?.longitude ?? lift.lon_end,
         {
           color: "#8e8e8e",
           weight: 2,
@@ -142,12 +142,12 @@ function prepareResort(resort) {
   const slopes = (resort.slopes ?? [])
     .map((slope) =>
       createLineEntry(
-        slope.lat_start,
-        slope.lon_start,
-        slope.lat_end,
-        slope.lon_end,
+        slope.geometry?.start?.latitude ?? slope.lat_start,
+        slope.geometry?.start?.longitude ?? slope.lon_start,
+        slope.geometry?.end?.latitude ?? slope.lat_end,
+        slope.geometry?.end?.longitude ?? slope.lon_end,
         {
-          color: getSlopeColor(slope.difficulty),
+          color: getSlopeColor(slope.difficulty ?? slope.display?.difficulty),
           weight: 2.2,
           opacity: 0.95,
         }
