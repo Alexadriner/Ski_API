@@ -25,6 +25,7 @@ API_KEY = "R3StTY4OfadeFJZurXdZ1pZMVbWB3zWuL6FnuPGIbvA"
 
 HEADERS = {
     "Content-Type": "application/json",
+    "Authorization": f"Bearer {API_KEY}",
 }
 
 SLEEP = 0.2
