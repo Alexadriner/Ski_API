@@ -218,6 +218,23 @@ def build_merge_payload(component, resort_id):
                 src_url = st.get("source_url")
                 break
 
+    base_path = (((base.get("geometry") or {}).get("path")) or [])
+    merged_path = None
+    if base_path:
+        merged_path = [
+            {
+                "latitude": p.get("latitude"),
+                "longitude": p.get("longitude"),
+            }
+            for p in base_path
+            if p.get("latitude") is not None and p.get("longitude") is not None
+        ]
+    elif start_lat is not None and start_lon is not None and end_lat is not None and end_lon is not None:
+        merged_path = [
+            {"latitude": start_lat, "longitude": start_lon},
+            {"latitude": end_lat, "longitude": end_lon},
+        ]
+
     return {
         "resort_id": resort_id,
         "name": base.get("name"),
@@ -242,6 +259,7 @@ def build_merge_payload(component, resort_id):
         "operational_note": " | ".join(notes) if notes else None,
         "status_updated_at": latest_updated,
         "status_source_url": src_url,
+        "slope_path_json": json.dumps(merged_path, ensure_ascii=True) if merged_path else None,
     }
 
 

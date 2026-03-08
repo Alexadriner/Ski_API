@@ -29,6 +29,9 @@ HEADERS = {
 }
 
 SLEEP = 0.2
+API_TIMEOUT = 120
+API_RETRIES = 4
+API_RETRY_BACKOFF = 1.5
 
 # =========================
 # LOGGING
@@ -206,12 +209,36 @@ def shard_items(items, worker_id, total_workers):
 
 
 def api_get(path):
-    r = requests.get(
-        f"{API_BASE_URL}{path}?api_key={API_KEY}",
-        headers=HEADERS,
-    )
-    r.raise_for_status()
-    return r.json()
+    url = f"{API_BASE_URL}{path}"
+    sep = "&" if "?" in path else "?"
+    url_with_key = f"{url}{sep}api_key={API_KEY}"
+
+    last_error = None
+    for attempt in range(1, API_RETRIES + 1):
+        try:
+            r = requests.get(
+                url_with_key,
+                headers=HEADERS,
+                timeout=API_TIMEOUT,
+            )
+            if r.status_code == 408 or r.status_code >= 500:
+                raise requests.HTTPError(
+                    f"Transient HTTP {r.status_code} for {path}",
+                    response=r,
+                )
+            r.raise_for_status()
+            return r.json()
+        except (requests.RequestException, requests.HTTPError) as exc:
+            last_error = exc
+            if attempt >= API_RETRIES:
+                break
+            sleep_s = API_RETRY_BACKOFF * attempt
+            logger.warning(
+                f"GET retry {attempt}/{API_RETRIES} for {path} after error: {exc}"
+            )
+            time.sleep(sleep_s)
+
+    raise last_error
 
 
 def api_put(path, payload):
@@ -308,15 +335,99 @@ def save_phase(phase):
 # LOAD DATA
 # =========================
 def load_all():
-    resorts = api_get("/resorts")
-    lifts = api_get("/lifts")
-    slopes = api_get("/slopes")
+    resorts = api_get("/resorts?summary=true")
+    lifts_raw = api_get("/lifts")
+    slopes_raw = api_get("/slopes")
+
+    lifts = [normalize_lift_payload(item) for item in lifts_raw]
+    slopes = [normalize_slope_payload(item) for item in slopes_raw]
 
     logger.info(f"Loaded {len(resorts)} resorts")
     logger.info(f"Loaded {len(lifts)} lifts")
     logger.info(f"Loaded {len(slopes)} slopes")
 
     return resorts, lifts, slopes
+
+
+def normalize_lift_payload(item):
+    # Supports both legacy flat API payloads and the current nested response shape.
+    display = item.get("display", {}) if isinstance(item.get("display"), dict) else {}
+    geometry = item.get("geometry", {}) if isinstance(item.get("geometry"), dict) else {}
+    specs = item.get("specs", {}) if isinstance(item.get("specs"), dict) else {}
+    source = item.get("source", {}) if isinstance(item.get("source"), dict) else {}
+    status = item.get("status", {}) if isinstance(item.get("status"), dict) else {}
+    start = geometry.get("start", {}) if isinstance(geometry.get("start"), dict) else {}
+    end = geometry.get("end", {}) if isinstance(geometry.get("end"), dict) else {}
+
+    return {
+        "id": item.get("id"),
+        "resort_id": item.get("resort_id"),
+        "name": item.get("name"),
+        "lift_type": item.get("lift_type") or display.get("lift_type") or "unknown",
+        "capacity_per_hour": item.get("capacity_per_hour", specs.get("capacity_per_hour")),
+        "seats": item.get("seats", specs.get("seats")),
+        "bubble": item.get("bubble", specs.get("bubble")),
+        "heated_seats": item.get("heated_seats", specs.get("heated_seats")),
+        "year_built": item.get("year_built", specs.get("year_built")),
+        "altitude_start_m": item.get("altitude_start_m", specs.get("altitude_start_m")),
+        "altitude_end_m": item.get("altitude_end_m", specs.get("altitude_end_m")),
+        "lat_start": item.get("lat_start", start.get("latitude")),
+        "lon_start": item.get("lon_start", start.get("longitude")),
+        "lat_end": item.get("lat_end", end.get("latitude")),
+        "lon_end": item.get("lon_end", end.get("longitude")),
+        "source_system": item.get("source_system", source.get("system")),
+        "source_entity_id": item.get("source_entity_id", source.get("entity_id")),
+        "name_normalized": item.get("name_normalized", display.get("normalized_name")),
+        "operational_status": item.get("operational_status", status.get("operational_status")),
+        "operational_note": item.get("operational_note", status.get("note")),
+        "planned_open_time": item.get("planned_open_time", status.get("planned_open_time")),
+        "planned_close_time": item.get("planned_close_time", status.get("planned_close_time")),
+        "status_updated_at": item.get("status_updated_at", status.get("updated_at")),
+        "status_source_url": item.get("status_source_url", source.get("source_url")),
+    }
+
+
+def normalize_slope_payload(item):
+    # Supports both legacy flat API payloads and the current nested response shape.
+    display = item.get("display", {}) if isinstance(item.get("display"), dict) else {}
+    geometry = item.get("geometry", {}) if isinstance(item.get("geometry"), dict) else {}
+    specs = item.get("specs", {}) if isinstance(item.get("specs"), dict) else {}
+    source = item.get("source", {}) if isinstance(item.get("source"), dict) else {}
+    status = item.get("status", {}) if isinstance(item.get("status"), dict) else {}
+    start = geometry.get("start", {}) if isinstance(geometry.get("start"), dict) else {}
+    end = geometry.get("end", {}) if isinstance(geometry.get("end"), dict) else {}
+    path = geometry.get("path")
+    slope_path_json = None
+    if isinstance(path, list):
+        slope_path_json = json.dumps(path)
+
+    return {
+        "id": item.get("id"),
+        "resort_id": item.get("resort_id"),
+        "name": item.get("name"),
+        "difficulty": item.get("difficulty") or display.get("difficulty") or "unknown",
+        "length_m": item.get("length_m", specs.get("length_m")),
+        "vertical_drop_m": item.get("vertical_drop_m", specs.get("vertical_drop_m")),
+        "average_gradient": item.get("average_gradient", specs.get("average_gradient")),
+        "max_gradient": item.get("max_gradient", specs.get("max_gradient")),
+        "snowmaking": item.get("snowmaking", specs.get("snowmaking")),
+        "night_skiing": item.get("night_skiing", specs.get("night_skiing")),
+        "family_friendly": item.get("family_friendly", specs.get("family_friendly")),
+        "race_slope": item.get("race_slope", specs.get("race_slope")),
+        "lat_start": item.get("lat_start", start.get("latitude")),
+        "lon_start": item.get("lon_start", start.get("longitude")),
+        "lat_end": item.get("lat_end", end.get("latitude")),
+        "lon_end": item.get("lon_end", end.get("longitude")),
+        "source_system": item.get("source_system", source.get("system")),
+        "source_entity_id": item.get("source_entity_id", source.get("entity_id")),
+        "name_normalized": item.get("name_normalized", display.get("normalized_name")),
+        "operational_status": item.get("operational_status", status.get("operational_status")),
+        "grooming_status": item.get("grooming_status", status.get("grooming_status")),
+        "operational_note": item.get("operational_note", status.get("note")),
+        "status_updated_at": item.get("status_updated_at", status.get("updated_at")),
+        "status_source_url": item.get("status_source_url", source.get("source_url")),
+        "slope_path_json": item.get("slope_path_json", slope_path_json),
+    }
 
 
 # =========================

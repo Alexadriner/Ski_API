@@ -1,5 +1,6 @@
 use actix_web::{web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sqlx::{Error, MySqlPool};
 use std::collections::HashMap;
 
@@ -114,6 +115,7 @@ pub struct SlopeSummary {
 pub struct LineGeometry {
     pub start: CoordinatePoint,
     pub end: CoordinatePoint,
+    pub path: Option<Vec<CoordinatePoint>>,
 }
 
 #[derive(Serialize, Clone)]
@@ -263,6 +265,37 @@ fn is_truthy_flag(value: &str) -> bool {
     matches!(value.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on")
 }
 
+fn parse_path_geojson(path_geojson: Option<String>) -> Option<Vec<CoordinatePoint>> {
+    let raw = path_geojson?;
+    let parsed: Value = serde_json::from_str(&raw).ok()?;
+    let arr = parsed.as_array()?;
+
+    let mut points: Vec<CoordinatePoint> = Vec::new();
+    for item in arr {
+        let latitude = item
+            .get("latitude")
+            .and_then(|v| v.as_f64())
+            .or_else(|| item.get("lat").and_then(|v| v.as_f64()));
+        let longitude = item
+            .get("longitude")
+            .and_then(|v| v.as_f64())
+            .or_else(|| item.get("lon").and_then(|v| v.as_f64()));
+        if latitude.is_none() || longitude.is_none() {
+            continue;
+        }
+        points.push(CoordinatePoint {
+            latitude,
+            longitude,
+        });
+    }
+
+    if points.is_empty() {
+        None
+    } else {
+        Some(points)
+    }
+}
+
 async fn load_lifts_by_resort(db: &MySqlPool) -> Result<HashMap<String, Vec<LiftSummary>>, Error> {
     let rows = sqlx::query!(
         r#"
@@ -296,6 +329,7 @@ async fn load_lifts_by_resort(db: &MySqlPool) -> Result<HashMap<String, Vec<Lift
                         latitude: row.lat_end,
                         longitude: row.lon_end,
                     },
+                    path: None,
                 },
                 status: LiftStatusSummary {
                     operational_status: row.operational_status,
@@ -316,6 +350,7 @@ async fn load_slopes_by_resort(db: &MySqlPool) -> Result<HashMap<String, Vec<Slo
         SELECT id, resort_id, name, difficulty,
                CAST(lat_start AS DOUBLE) AS lat_start, CAST(lon_start AS DOUBLE) AS lon_start,
                CAST(lat_end AS DOUBLE) AS lat_end, CAST(lon_end AS DOUBLE) AS lon_end,
+               CAST(path_geojson AS CHAR) AS path_geojson,
                operational_status, grooming_status, operational_note,
                DATE_FORMAT(status_updated_at, '%Y-%m-%dT%H:%i:%sZ') AS status_updated_at
         FROM slopes
@@ -341,6 +376,7 @@ async fn load_slopes_by_resort(db: &MySqlPool) -> Result<HashMap<String, Vec<Slo
                         latitude: row.lat_end,
                         longitude: row.lon_end,
                     },
+                    path: parse_path_geojson(row.path_geojson),
                 },
                 status: SlopeStatusSummary {
                     operational_status: row.operational_status,
@@ -547,6 +583,7 @@ pub async fn get_resort(
                         latitude: row.lat_end,
                         longitude: row.lon_end,
                     },
+                    path: None,
                 },
                 status: LiftStatusSummary {
                     operational_status: row.operational_status,
@@ -565,6 +602,7 @@ pub async fn get_resort(
         SELECT id, name, difficulty,
                CAST(lat_start AS DOUBLE) AS lat_start, CAST(lon_start AS DOUBLE) AS lon_start,
                CAST(lat_end AS DOUBLE) AS lat_end, CAST(lon_end AS DOUBLE) AS lon_end,
+               CAST(path_geojson AS CHAR) AS path_geojson,
                operational_status, grooming_status, operational_note,
                DATE_FORMAT(status_updated_at, '%Y-%m-%dT%H:%i:%sZ') AS status_updated_at
         FROM slopes
@@ -592,6 +630,7 @@ pub async fn get_resort(
                         latitude: row.lat_end,
                         longitude: row.lon_end,
                     },
+                    path: parse_path_geojson(row.path_geojson),
                 },
                 status: SlopeStatusSummary {
                     operational_status: row.operational_status,
